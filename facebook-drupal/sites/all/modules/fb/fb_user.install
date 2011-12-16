@@ -1,0 +1,53 @@
+<?php
+/**
+ * @file
+ * Install file for fb_user.module.
+ *
+ */
+
+/**
+ * Implement hook_install().
+ */
+function fb_user_install() {
+}
+
+/**
+ * Implement hook_uninstall().
+ */
+function fb_user_uninstall() {
+
+  foreach (array(FB_USER_VAR_USERNAME_STYLE,
+                 FB_USER_VAR_ALTER_REGISTER,
+                 FB_USER_VAR_ALTER_LOGIN,
+                 FB_USER_VAR_ALTER_LOGIN_BLOCK,
+                 FB_USER_VAR_ALTER_CONTACT,
+                 FB_USER_VAR_TEXT_REGISTER,
+                 FB_USER_VAR_TEXT_LOGIN,
+                 FB_USER_VAR_TEXT_LOGIN_BLOCK,
+           ) as $var) {
+    variable_del($var);
+  }
+}
+
+
+function fb_user_schema() {
+  // Note fb_user_app table has been moved to fb_user_app.module.
+
+  $schema['fb_user'] = array(
+    'fields' => array(
+      'uid' => array(
+        'type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE,
+      ),
+      'fbu' => array(
+        // http://forum.developers.facebook.net/viewtopic.php?pid=4676
+        'type' => 'int', 'size' => 'big', 'not null' => TRUE,
+      ),
+    ),
+    'primary key' => array('uid'),
+    'unique keys' => array(
+      'fbu' => array('fbu')),
+  );
+
+
+  return $schema;
+}

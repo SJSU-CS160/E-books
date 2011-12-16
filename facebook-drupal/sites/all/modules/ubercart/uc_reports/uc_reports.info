@@ -1,0 +1,14 @@
+name = Reports
+description = Provides reports about your store's sales, customers, and products.
+dependencies[] = uc_order
+dependencies[] = uc_product
+package = "Ubercart - core (optional)"
+core = 7.x
+configure = admin/store/settings/store
+
+; Information added by drupal.org packaging script on 2011-10-07
+version = "7.x-3.0-rc2"
+core = "7.x"
+project = "ubercart"
+datestamp = "1318007807"
+

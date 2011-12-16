@@ -1,0 +1,45 @@
+<?php
+// $Id$
+
+/**
+ * Implementation of hook_install().
+ */
+function restricted_content_install() {
+  drupal_install_schema('restricted_content');
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function restricted_content_uninstall() {
+  drupal_uninstall_schema('restricted_content');
+
+  drupal_load('module', 'restricted_content');
+  $variables = restricted_content_variables();
+  foreach ($variables as $variable) {
+    variable_del($variable);
+  }
+}
+
+/**
+ * Implementation of hook_schema().
+ */
+function restricted_content_schema() {
+  $schema['restricted_content'] = array(
+    'fields' => array(
+      'nid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'rids' => array(
+        'type' => 'text',
+        'size' => 'medium',
+        'not null' => FALSE,
+      ),
+    ),
+    'primary key' => array('nid'),
+  );
+  return $schema;
+}

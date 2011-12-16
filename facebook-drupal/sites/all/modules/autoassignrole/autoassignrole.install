@@ -1,0 +1,8 @@
+<?php
+// $Id: autoassignrole.install,v 1.14 2010/10/10 21:03:35 cyberswat Exp $
+
+/**
+ * @file
+ *
+ * Installation related functionality for the auto assign role module.
+ */

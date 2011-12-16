@@ -1,0 +1,15 @@
+<?php
+
+/**
+ * Implements hook_exit().
+ */
+function token_test_exit() {
+  debug($debug);
+  if ($debug = variable_get('token_page_tokens', array())) {
+    $debug += array('tokens' => array(), 'data' => array(), 'options' => array());
+    foreach (array_keys($debug['tokens']) as $token) {
+      $debug['values'][$token] = token_replace_multiple($token, $debug['data'], TOKEN_PREFIX, TOKEN_SUFFIX, $debug['options']);
+    }
+    variable_set('token_page_tokens', $debug);
+  }
+}

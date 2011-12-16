@@ -1,0 +1,11 @@
+name = HTML2Book
+description = Add option to split book body into new book pages at each HTML heading in the text.
+core = 6.x
+dependencies[] = book
+
+; Information added by drupal.org packaging script on 2011-02-25
+version = "6.x-1.x-dev"
+core = "6.x"
+project = "html2book"
+datestamp = "1298619386"
+

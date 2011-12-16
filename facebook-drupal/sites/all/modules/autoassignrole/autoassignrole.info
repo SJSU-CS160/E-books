@@ -1,0 +1,8 @@
+; $Id: autoassignrole.info,v 1.6 2010/10/10 21:03:35 cyberswat Exp $
+name = Auto Assign Role
+description = Automatically assign a role to new users.
+core = 7.x
+configure=admin/config/autoassignrole
+version = VERSION
+files[] = autoassignrole.admin.inc
+files[] = autoassignrole.test

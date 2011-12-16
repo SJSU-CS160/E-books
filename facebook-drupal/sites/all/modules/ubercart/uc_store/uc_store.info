@@ -1,0 +1,17 @@
+name = Store
+description = REQUIRED. Handles store settings and management of your Ubercart site.
+package = Ubercart - core
+core = 7.x
+files[] = classes/mail.inc
+files[] = classes/address.inc
+files[] = classes/encrypt.inc
+files[] = tests/uc_store.test
+configure = admin/store/settings/store
+stylesheets[all][] = uc_store.css
+
+; Information added by drupal.org packaging script on 2011-10-07
+version = "7.x-3.0-rc2"
+core = "7.x"
+project = "ubercart"
+datestamp = "1318007807"
+

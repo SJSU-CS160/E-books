@@ -1,0 +1,104 @@
+<?php
+// $Id: time_limit.module,v 1.1.2.1 2010/03/10 17:23:52 hippich Exp $
+
+define('TIME_LIMIT_ALWAYS_SHOW', "user\nuser/login");
+
+/**
+ * @file
+ * Main module. Limit access to site for predefined time period.
+ *
+ */
+
+
+/**
+ * Implementation of hook_perm().
+ */
+function time_limit_perm() {
+  return array(
+    "administer time limit",
+  );
+}
+
+
+/**
+ *      Implementing hook_menu()
+ */
+function time_limit_menu() {
+  $items = array();
+
+  $items['admin/settings/time_limit'] = array(
+    'title'             => 'Time limit settings',
+    'description'       => 'Various settings for Time Limit module',
+    'page callback'     => 'drupal_get_form',
+    'page arguments'    => array('time_limit_settings'),
+    'access callback'   => 'user_access',
+    'access arguments'  => array('administer time limit'),
+    'file'              => 'time_limit.admin.inc',
+  );
+
+  return $items;
+}
+
+
+/**
+ *      Implementing hook_init()
+ */
+function time_limit_init() {
+  global $user;
+
+  // Check only anonymous users
+  if ($user->uid == 0 && time_limit_check()) {
+    // If this user already visited site - check how long he was on site.
+    if ($_SESSION['firstvisit'] > 0) {
+      if (time() - $_SESSION['firstvisit'] >= variable_get('time_limit_time', 300)) {
+        $message = variable_get('time_limit_message', 'Please, register or login to continue useing of the site.');
+        drupal_set_message($message);
+        drupal_goto(variable_get('time_limit_landing_page', 'user/register'));
+      }
+    }
+    // Otherwise - save timestamp of the first visit in session
+    else {
+      $_SESSION['firstvisit'] = time();
+    }
+  }
+}
+
+function time_limit_check() {
+  // Just to be sure site is still accessible even after some incorrect settings
+  if (_time_limit_match_pages(TIME_LIMIT_ALWAYS_SHOW)) {
+    return false;
+  }
+
+  $paths = variable_get('time_limit_exclude', "user\nuser/register\nuser/login\nuser/password") ;
+
+  // If we set to show specific paths - add to list landing page path as well
+  if (! variable_get('time_limit_path_exclude', 0)) {
+    $paths .= "\n". variable_get('time_limit_landing_page', "user/register");
+  }
+
+  if (_time_limit_match_pages($paths)) {
+    return variable_get('time_limit_path_exclude', 0);
+  }
+
+  // This is node - check by content type
+  if (arg(0) == 'node' && is_numeric(arg(1))) {
+    $node = node_load(arg(1));
+    $types = variable_get('time_limit_content_types', array());
+    if ($types[$node->type]) {
+      return variable_get('time_limit_content_type_exclude', 0);
+    }
+  }
+
+  return variable_get('time_limit_default_exclude', 1);
+}
+
+function _time_limit_match_pages($pages) {
+  $path = drupal_get_path_alias($_GET['q']);
+  // Compare with the internal and path alias (if any).
+  $page_match = drupal_match_path($path, $pages);
+  if ($path != $_GET['q']) {
+    $page_match = $page_match || drupal_match_path($_GET['q'], $pages);
+  }
+
+  return $page_match;
+}

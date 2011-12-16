@@ -1,0 +1,30 @@
+<?php
+// $Id: time_limit.install,v 1.1 2010/03/04 16:15:30 hippich Exp $
+
+/**
+ * @file
+ * Provides initial variables values as well as cleaning on Uninstall.
+ *
+ */
+
+/**
+ * Implementation of hook_install().
+ */
+function time_limit_install() {
+  variable_set('time_limit_exclude', "user/register\nuser/login\nuser/password");
+  variable_set('time_limit_landing_page', 'user/register');
+  variable_set('time_limit_message', 'Please, register or login to continue useing of the site.');
+  variable_set('time_limit_time', 300);
+}
+
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function time_limit_uninstall() {
+  variable_del('time_limit_exclude');
+  variable_del('time_limit_landing_page');
+  variable_del('time_limit_message');
+  variable_del('time_limit_time');
+}
+

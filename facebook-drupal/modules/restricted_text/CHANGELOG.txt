@@ -1,0 +1,9 @@
+// $Id: CHANGELOG.txt,v 1.2 2008/12/08 21:35:15 pukku Exp $
+
+2006 September 25:
+    initial commit
+
+2008 Dec 08:
+    moved development back into HEAD
+    updated to allow plug-in modules
+    is now Drupal-6 ready (actually, it probably was earlier)

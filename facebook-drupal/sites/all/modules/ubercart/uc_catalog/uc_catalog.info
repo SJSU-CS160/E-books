@@ -1,0 +1,18 @@
+name = Catalog
+description = Display a hierarchical product catalog page and block.
+dependencies[] = path
+dependencies[] = taxonomy
+dependencies[] = uc_product
+dependencies[] = views
+package = "Ubercart - core (optional)"
+core = 7.x
+files[] = uc_catalog.module
+files[] = classes/treenode.inc
+configure = admin/store/settings/catalog
+
+; Information added by drupal.org packaging script on 2011-10-07
+version = "7.x-3.0-rc2"
+core = "7.x"
+project = "ubercart"
+datestamp = "1318007807"
+

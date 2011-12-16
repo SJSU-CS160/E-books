@@ -1,0 +1,236 @@
+<?php
+
+/**
+ * Implementation of hook_help().
+ */
+function html2book_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#html2book' :
+      $output = t('<p>HTML2Book lets you optionally create a new book page at each html heading and subheading (&lt;h1&gt;, &lt;h2&gt;, etc) in the body text. This makes it possible to use documents created in word processing programs to automatically create a multi-page Drupal book or book section in a single step. To use this feature, click on the input split collapsible box below the book body in the edit form.</p><p>All text before the first heading will be retained as the body of the original page. Subsequent pages will be added as children of that page, using the heading as their title and all text from that point to the next heading as their body. Child pages will be nested based on the subheadding number, i.e. h2 pages will be nested below the h1 page they follow, h3 pages will be nested below h2 pages, etc. </p> <p>You can choose which heading levels will be used to create new pages. You might create new pages only when a &lt;h1&gt; or &lt;h2&gt; heading is encountered, or make a new page at every header. <p>Each new book page is created as a clone of the original page, so they will have the same author, categories, and other settings selected in the original page. For instance, if the original page is marked as published and promoted to the front page, all the child pages will be published and promoted to the front page. If the original page uses the Full HTML filter, all the child pages will use the same filter. If you set the original page to be private to an Organic Group, all the child pages will have the same setting. </p><p>If the source is a word processing document, be sure it has been saved as html rather than as a word processing document so the HTML2Book module can locate the headings in the text. Microsoft Word documents pasted into the body should come from text first saved as \'Html, filtered\' for best results. Badly structured documents will yield unpredictable results, clean and simple html will work the best.</p>');
+      $output .= t('EXAMPLE:
+<pre>
+INPUT:
+
+Node 1 Title: My Book
+Node 1 Body:
+&lt;div&gt;Here is my page.&lt;/div&gt;
+&lt;h1&gt;Page 1&lt;/h1&gt;
+  &lt;p&gt;Here is my text for page 1.&lt;/p&gt;
+  &lt;h2&gt;Page 1a&lt;/h2&gt;
+    &lt;p&gt;This is page 1a.&lt;/p&gt;
+  &lt;h2&gt;Page 1b&lt;/h2&gt;
+    &lt;p&gt;This is page 1b.&lt;/p&gt;
+&lt;h1&gt;Page 2&lt;/h1&gt;
+  &lt;p&gt;This is page 2.&lt;/p&gt;
+
+CREATES:
+
+Node 1 Title: My Book
+Node 1 Body: &lt;div&gt;Here is my page.&lt;/div&gt;
+Node 1 Parent: &lt;top level&gt;
+Node 1 Weight: -15
+
+    Node 2 Title: Page 1
+    Node 2 Body: &lt;p&gt;Here is my text for page 1.&lt;/p&gt;
+    Node 2 Parent: Node 1
+    Node 2 Weight: -15
+
+       Node 3 Title: Page 1a
+       Node 3 Body: &lt;p&gt;This is page 1a.&lt;/p&gt;
+       Node 3 Parent: Node 2
+       Node 3 Weight: -15
+
+       Node 4 Title: Page 1b
+       Node 4 Body: &lt;p&gt;This is page 1b.&lt;/p&gt;
+       Node 4 Parent: Node 2
+       Node 4 Weight: -14
+
+    Node 5 Title: Page 2
+    Node 5 Body: &lt;p&gt;This is page 2.&lt;/p&gt;
+    Node 5 Parent: Node 1
+    Node 5 Weight: -14
+    </pre>
+');
+      return $output;
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_perm().
+ */
+function html2book_perm() {
+  return array('use html2book');
+}
+
+/**
+ * Implementation of hook_form_alter().
+ */
+function html2book_form_alter(&$form, $form_state, $form_id) {
+  if ($form_id == 'book_node_form' && user_access('use html2book')) {
+    $form['html2book_group'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('HTML2Book Splitter'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+      );
+    $form['html2book_group']['html2book'] = array(
+      '#type' => 'radios',
+      '#title' => t('Heading treatment'),
+      '#description' => t('Should this text be !help  at each HTML heading?', array('!help' => l(t('split into new book pages'), 'admin/help/html2book'))),
+      '#default_value' => $form['html2book'] ? $form['html2book'] : 0,
+      '#options' => array(0 => t('Do not split text into book pages.'), 1 => t('Create a new book page at each HTML heading.')),
+      );
+    $form['html2book_group']['splitters'] = array(
+      '#type' => 'checkboxes',
+      '#title' => t('Split on'),
+      '#description' => t('Identify the header levels that should identify a new book page. All other headers will be ignored.'),
+      '#options' => array(
+        '1' => '&lt;h1&gt;',
+        '2' => '&lt;h2&gt;',
+        '3' => '&lt;h3&gt;',
+        '4' => '&lt;h4&gt;',
+        '5' => '&lt;h5&gt;',
+        '6' => '&lt;h6&gt;',
+        '7' => '&lt;h7&gt;',
+      ),
+      '#default_value' => array(1, 2, 3),
+    );  
+  }
+}
+
+/**
+ * Implementation of hook_nodeapi().
+ *
+ * @TODO Might be nice to have a confirmation message.
+ */
+function html2book_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  if ($node->type == 'book' && !empty($node->html2book) && user_access('use html2book')) {
+    switch ($op) {
+    case 'update':  
+    case 'insert':
+      html2book_split($node, $op);
+      unset($node->temp);
+      break;
+    }
+  }
+}
+
+/**
+ * html2book operation.
+ */
+function html2book_split(&$node, $op) {
+  
+  // This may take some time since new nodes are created.
+  // @TODO It would be better to make this into a batch script,
+  // but the processing is all intertwined, so it's hard to see how to do it.
+  $original_time = ini_get('max_execution_time');
+  ini_set('max_execution_time', 0);
+
+  // Break body into separate pages wherever there is a heading.
+  // Identify the heading numbers we want to use to create a new book.
+  $splitters = array_filter(array_values($node->splitters));
+  $items = preg_split('/<h(['. implode('|', $splitters) .'].*)>/U', $node->temp, -1, PREG_SPLIT_DELIM_CAPTURE );
+
+  $node->temp = $node->body;
+  $node->body = $items[0];
+  $node->teaser = node_teaser($node->body);
+  
+  // Track heading levels, weights, and page parents and children.
+  $istag = FALSE;
+  $weight[0] = -15;
+  $prev_level = 0;
+  foreach ($items as $item) {
+    if ($istag) {
+      $parts = explode(' ', $item);
+      $level = $parts[0];
+    }
+    else {
+      if (isset($level)) {
+        $string = '<h'. $level . '>'. $item;
+        $split = explode('</h'. $level .'>', $string);
+        $title = trim(str_replace('&nbsp;', ' ', strip_tags($split[0])));
+        $body = trim($split[1]);
+      }
+      else {
+        // If $level isn't set, this is the body text that preceeds the first heading.
+        // This will become the parent node's body text.
+        $title = '';
+        $body = $item;
+      }
+      if (!empty($title) || !empty($body) || !isset($parent)) {
+        if (!isset($parent)) {
+          // The first time through, make sure we have a nid for the parent
+          // and adjust the parent body and teaser.
+          $parent = array(0 => $node->nid);
+          $book = array(0 => $node);
+          //Update hack. save_node spirals into a infinite loop, so 
+          //check if the initial page is part of a book. If not -
+          //create a new book (:-)
+          if($op == 'update'){
+			      if ($node->book['bid'] == 0){
+					    module_load_include('inc', 'book', 'book.pages');
+					    $formvals = array();
+					    $formvals['values']['book']['bid'] = $node->nid;
+					    $formvals['values']['book']['weight'] = 0;
+					    drupal_execute('book_outline_form', $formvals, (object)$node);
+				    }
+			    }
+          if ($op == 'insert'){
+			      if($node->book['bid'] == 0 || !isset($node->book['bid'])){
+						  $node->book['bid'] = $node->nid;
+						  node_save($node);
+				    }
+			
+			    }
+			    $page = 1;
+        }
+        else {
+          // After the first time through, clone the parent as a starting point for child nodes.
+          $child_node = drupal_clone($node);
+          // Set the child nid and vid to zero so new nodes are created.
+          $child_node->nid = 0;
+          $child_node->vid = 0;
+          // Make sure the title is not empty and create the child's body, teaser, and weight.
+          $child_node->title = !empty($title) ? $title : t('Page !$page', array('!page' => $page));
+          $child_node->body = $body;
+          $child_node->teaser = node_teaser($body);
+
+          if ($level > $prev_level || !isset($weight[$level])) {
+            $weight[$level] = -15;
+          }
+          else {
+            // There might be too many pages to increase this forever.
+            // Don't overrun the book module max weight.
+            if ($weight[$level] <= 15) $weight[$level]++;
+          }
+          $child_node->book['weight'] = $weight[$level];
+
+          // Find the parent id for this node using the value stored for the
+          // next higher level.
+          $parent_level = intval($level - 1);
+          $child_node->parent = !empty($parent[$parent_level]) ? $parent[$parent_level] : $node->nid;
+
+          $child_node->book['bid'] = $parent[0];
+          $child_node->book['menu_name'] = $book[0]->book['menu_name'];
+          $child_node->book['plid'] = $book[$parent_level]->book['mlid'];
+
+          // Make sure html2book is not run again on the child nodes that are created.
+          $child_node->html2book = 0;
+          // Save the child node.
+          node_save($child_node);
+          // Set a parent nid for this level that can be used by later children.
+          $parent[$level] = $child_node->nid;
+          $book[$level] = $child_node;
+          $page++;
+        }
+      }
+    }
+    $istag = !$istag;
+    $prev_level = $level;
+  }
+  // Make sure html2book isn't run more than once on the same text.
+  $node->html2book = 0;
+  // Reset max_execution_time
+  ini_set('max_execution_time', $original_time);
+}

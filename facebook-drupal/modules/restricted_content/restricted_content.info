@@ -1,0 +1,13 @@
+; $Id$
+name = Restricted content
+description = Restrict content access for only certain user roles, but show a nice message.
+core = 6.x
+package = Access control
+suggests[] = token
+
+; Information added by drupal.org packaging script on 2010-07-11
+version = "6.x-1.x-dev"
+core = "6.x"
+project = "restricted_content"
+datestamp = "1278835503"
+

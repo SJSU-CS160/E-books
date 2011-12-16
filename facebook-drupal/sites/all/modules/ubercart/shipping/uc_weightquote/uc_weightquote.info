@@ -1,0 +1,13 @@
+name = Weight quote
+description = Assigns a shipping rate to products based on weight.
+dependencies[] = uc_quote
+package = Ubercart - fulfillment
+core = 7.x
+configure = admin/store/settings/quotes/methods/weightquote
+
+; Information added by drupal.org packaging script on 2011-10-07
+version = "7.x-3.0-rc2"
+core = "7.x"
+project = "ubercart"
+datestamp = "1318007807"
+

@@ -1,0 +1,190 @@
+<?php
+// $Id$
+
+/**
+ * Implementation of hook_perm().
+ */
+function restricted_content_perm() {
+  return array('restrict content access', 'restrict own content access');
+}
+
+/**
+ * Implementation of hook_menu().
+ */
+function restricted_content_menu() {
+  $items['admin/content/restricted'] = array(
+    'title' => 'Restricted content',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('restricted_content_settings_form'),
+    'access arguments' => array('restrict content access'),
+    'file' => 'restricted_content.admin.inc',
+  );
+
+  return $items;
+}
+
+/**
+ * Implementation of hook_form_alter().
+ */
+function restricted_content_form_alter(&$form, $form_state, $form_id) {
+  if ($form_id == 'node_type_form') {
+    //restricted_content_node_form($form);
+  }
+  elseif ($form['#id'] == 'node-form') {
+    $default = unserialize(db_result(db_query("SELECT rids FROM {restricted_content} WHERE nid = %d", $form['nid']['#value'])));
+    restricted_content_node_form($form, $default);
+    $form['#submit'][] = 'restricted_content_node_form_submit';
+  }
+}
+
+/**
+ * Option elements to add to node forms.
+ */
+function restricted_content_node_form(&$form, $default) {
+  $form['restricted_content'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Restricted Access'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+    '#tree' => TRUE,
+    '#access' => restricted_content_form_access($form['uid']['#value']),
+  );
+  $form['restricted_content']['rids'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Restrict access to users with the following user roles'),
+    '#description' => t('If no roles are selected, the node will be viewable by all users.'),
+    '#options' => user_roles(),
+    '#default_value' => is_array($default) ? $default : array(),
+  );
+  $form['#submit'][] = 'restricted_content_node_form_submit';
+}
+
+function restricted_content_node_form_submit($form, $form_state) {
+  $nid = $form_state['values']['nid'];
+  $rids = array_keys(array_filter($form_state['values']['restricted_content']['rids']));
+  db_query("DELETE FROM {restricted_content} WHERE nid = %d", $nid);
+  if ($rids) {
+    db_query("INSERT INTO {restricted_content} VALUES (%d, '%s')", $nid, serialize($rids));
+  }
+}
+
+function restricted_content_form_access($uid) {
+  global $user;
+  return user_access('restrict content access') || ($uid == $user->uid && user_access('restrict own content access'));
+}
+
+/**
+ * Checks if a node is restricted from the current user.
+ *
+ * @param $nid
+ *   A node ID.
+ * @param $account
+ *   An optional user account to check, defaults to the current user.
+ * @return
+ *   TRUE if the user has access to the node, or FALSE if the user is
+ *   restricted from the node.
+ */
+function restricted_content_node_access($nid, $account = NULL) {
+  global $user;
+  if (!$account) {
+    $account = $user;
+  }
+  $rids = unserialize(db_result(db_query("SELECT rids FROM {restricted_content} WHERE nid = %d", $nid)));
+  return !$rids || array_intersect($rids, array_keys($account->roles));
+}
+
+function restricted_content_nodeapi(&$node, $op, $teaser = NULL, $page = NULL) {
+  global $user;
+
+  if ($op == 'delete') {
+    db_query("DELETE FROM {restricted_content} WHERE nid = %d", $node->nid);
+  }
+  elseif ($op == 'alter' && !restricted_content_form_access($node->uid) && !restricted_content_node_access($node->nid)) {
+    $message = restricted_content_var('message');
+    $node->restricted = TRUE;
+    $node->comment = COMMENT_NODE_DISABLED;
+
+    // Add a register link of the user is anonymous and can register for an
+    // account.
+    if (!$user->uid && variable_get('user_register', 1)) {
+      $message .= ' '. restricted_content_var('message_anon');
+    }
+
+    // Perform token replacement if token module is available.
+    if (module_exists('token')) {
+      $message = token_replace($message, 'node', $node);
+    }
+
+    $node->teaser = $message;
+    $node->body = $message;
+  }
+  /*elseif ($op == 'alter' && !empty($node->restricted)) {
+    // Send a 403 if this is an individual page view.
+    if ($page) {
+      drupal_set_header('HTTP/1.1 403 Forbidden');
+    }
+  }*/
+}
+
+/**
+ * Implementation of MODULE_preprocess_node().
+ */
+function restricted_content_preprocess_node(&$vars) {
+  if (!empty($vars['node']->restricted)) {
+    $vars['submitted'] = FALSE;
+    $vars['picture'] = FALSE;
+    $vars['taxonomy'] = FALSE;
+    $vars['terms'] = FALSE;
+    $vars['links'] = FALSE;
+  }
+}
+
+/**
+ * Implementation of hook_token_list().
+ */
+function restricted_content_token_list($type = 'all') {
+  $tokens['global']['site-register-url'] = t('The URL of the register user page');
+  if ($type == 'node' || $type == 'all') {
+    $tokens['node']['type-name-lower'] = t('Node type (user-friendly version lowercased)');
+  }
+  return $tokens;
+}
+
+/**
+ * Implementation of hook_token_values().
+ */
+function restricted_content_token_values($type, $object = NULL) {
+  $tokens['site-register-url'] = url('user/register');
+  if ($type == 'node') {
+    $tokens['type-name-lower'] = drupal_strtolower(node_get_types('name', $object));
+  }
+  return $tokens;
+}
+
+/**
+ * Internal default variables for admin_links_var().
+ */
+function restricted_content_variables() {
+  return array(
+    'restricted_content_message' => t('This !token-type-name has been restricted to certain users.', array('!token-type-name' => module_exists('token') ? '[type-name-lower]' : t('content'))),
+    'restricted_content_message_anon' => t('Please <a href="!token-register">register for a user account</a> to view this !token-type-name.', array('!token-type-name' => module_exists('token') ? '[type-name-lower]' : t('content'), '!token-register' => module_exists('token') ? '[site-register-url]' : url('user/register'))),
+  );
+}
+
+/**
+ * Internal implementation of variable_get().
+ */
+function restricted_content_var($name, $default = NULL) {
+  static $defaults = NULL;
+  if (!isset($defaults)) {
+    $defaults = restricted_content_variables();
+  }
+
+  $name = 'restricted_content_' . $name;
+
+  if (!isset($defaults[$name])) {
+    trigger_error(t('Default variable for %variable not found.', array('%variable' => $name)));
+  }
+
+  return variable_get($name, isset($default) || !isset($defaults[$name]) ? $default : $defaults[$name]);
+}

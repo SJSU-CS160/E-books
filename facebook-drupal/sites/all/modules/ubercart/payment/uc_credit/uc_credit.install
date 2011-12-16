@@ -1,0 +1,24 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the uc_credit module.
+ *
+ * This is mostly legacy code now.
+ */
+
+/**
+ * Implements hook_uninstall().
+ */
+function uc_credit_uninstall() {
+  db_delete('variable')
+    ->condition('name', 'uc_credit_%', 'LIKE')
+    ->execute();
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function uc_credit_update_last_removed() {
+  return 6000;
+}

@@ -1,0 +1,13 @@
+name = Shipping quotes
+description = Enables shipping quotes to be calculated and displayed at checkout.
+dependencies[] = uc_cart
+package = "Ubercart - core (optional)"
+core = 7.x
+configure = admin/store/settings/quotes/edit
+
+; Information added by drupal.org packaging script on 2011-10-07
+version = "7.x-3.0-rc2"
+core = "7.x"
+project = "ubercart"
+datestamp = "1318007807"
+

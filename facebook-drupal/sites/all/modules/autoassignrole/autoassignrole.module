@@ -1,0 +1,296 @@
+<?php
+// $Id: autoassignrole.module,v 1.22 2010/11/14 21:25:32 cyberswat Exp $
+
+/**
+ * @file
+ *
+ * The main autoassignrole.module file
+ *
+ * Designate a role to assign all new users to in addition to providing a
+ * mechanism for new users to select a role or role for their account.
+ */
+
+/**
+ * Implements hook_permission().
+ */
+function autoassignrole_permission() {
+  return array(
+    'administer autoassignrole' =>  array(
+      'title' => t('Administer auto assign role'),
+      'description' => t('Perform administration tasks for auto assign role.'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu().
+ *
+ * @return array
+ */
+function autoassignrole_menu() {
+  $items = array();
+  $items['admin/config/autoassignrole'] = array(
+    'title' => 'Auto assign role',
+    'description' => 'Configure auto role assignment.',
+    'access arguments' => array('administer autoassignrole'),
+    'page callback' => 'autoassignrole_admin_block_page',
+    'file' => 'autoassignrole.admin.inc',
+  );
+  
+  $items['admin/config/autoassignrole/auto'] = array(
+    'title' => 'Auto role assignment',
+    'description' => 'Configure which role(s) are automatically assigned on user creation.',
+    'access arguments' => array('administer autoassignrole'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('autoassignrole_auto_settings'),
+    'file' => 'autoassignrole.admin.inc',
+  );
+  $items['admin/config/autoassignrole/user'] = array(
+    'title' => 'Allow user to choose',
+    'description' => 'Configure the ability for an end user to choose their own roles.',
+    'access arguments' => array('administer autoassignrole'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('autoassignrole_user_settings'),
+    'file' => 'autoassignrole.admin.inc',
+  );
+
+  return $items;
+}
+
+/*
+* Implements hook_form_alter()
+* The use of hook_form_alter() and not hook_form_FORM_ID_alter() is chosen to be able to control system module weight.
+* 
+* Adds a "Choose your role" radio field 
+*/
+
+function autoassignrole_form_alter(&$form, &$form_state, $form_id) {
+  if ($form_id != "user_register_form") {
+    return;
+  }
+  
+  if (!variable_get("autoassignrole_user_active", 0)) {
+    return;
+  }
+  
+  $allowed_roles = variable_get("autoassignrole_user_roles", array());
+  $roles = user_roles(TRUE);
+  $roles_names = array();
+  $revert_roles = array();
+  
+  foreach ($allowed_roles as $key => $role) {
+    if ($role) {
+      $roles_names[$role] = $roles[$key];
+      $revert_roles[$roles[$key]] = $role;
+    }
+  }
+  
+  switch (variable_get('autoassignrole_user_sort', 'SORT_ASC')) {
+    case 'SORC_ASC':
+      asort($roles_names);
+    break;
+
+    case 'SORT_DESC':
+      arsort($roles_names);
+    break;
+  }
+    
+  $is_multiple = variable_get('autoassignrole_user_multiple', 0);
+  $selection_type = variable_get('autoassignrole_user_selection', 0);
+  
+  
+  switch ($selection_type) {
+    case 1:
+      $stype = 'select';
+      // Multiple select doesn't work for the time being, forcing checkboxes if multiple
+      if ($is_multiple) {
+        $stype = 'checkboxes';
+      }
+    break;
+  
+    case 0:
+    default:
+      $stype = 'radios';
+      if ($is_multiple) {
+        $stype = 'checkboxes';
+      }
+    break;
+  }
+  
+  $form['aar_fieldset'] = array(
+        '#type' => 'fieldset',
+        '#title' => variable_get('autoassignrole_user_fieldset_title', t('User Roles')),
+        '#weight' => '0',
+        );
+        
+  $form['aar_fieldset']['aar_user_roles'] = array(
+        '#type' => $stype,
+        '#options' => $roles_names,
+        '#title' => variable_get('autoassignrole_user_title', t('Role')),
+        '#required' => variable_get('autoassignrole_user_required', 0),
+        '#multiple' => $is_multiple,
+        '#description' => variable_get('autoassignrole_user_description', t('Select a role')),
+        );
+
+  if (arg(2)) {
+      $default_role = arg(2);
+      if (array_key_exists($default_role, $revert_roles)) {
+          $default_roleid = $revert_roles[$default_role]; // Verify if index exists !
+          
+          $show_on_url = variable_get('autoassignrole_show_roles_on_auto_choose', 0);
+      
+          if ($show_on_url == 0) {
+            $form['aar_fieldset']['#attributes'] = array('style' => 'display:none;');
+          }
+          
+          $form['aar_fieldset']['aar_user_roles']['#default_value'] = $default_roleid;
+      }
+  }
+  
+  $perms = user_role_permissions($roles_names);
+  
+  
+  if (module_exists("profile2")) {
+    foreach (profile2_get_types() as $type_name => $profile_type) {
+      $type_name = check_plain($profile_type->type);
+      $roleconditions = get_role_id_for_profile_type($type_name, $perms, $roles_names);
+
+
+      // 5/20/2011 CS 160 Group 1, Kate
+      // This checks if the registration has a special role and then shows the 
+      // profile2 fields for that role.
+      // This should appear very similar to Group 3's work as they showed it 
+      // to me earlier today.
+      if (arg(2)) { // arg(2) is the third element in the url, e.g. user/register/Employer
+	  $default_role = arg(2);
+
+	  // If the type_name matches with the lowercase argument, show this 
+	  // profile.
+	  if (strtolower($default_role) == $type_name) {
+	      $profile_type->data['registration'] = 1;
+	  } else {
+	      $profile_type->data['registration'] = 0;
+	  }
+      }
+
+      /* 5/20/2011 CS 160 Group 1, Kate 
+       * Commenting out this block of autoassign role that doesn't 
+       * work yet. 
+      if (!$is_multiple) {
+        $visiblecondition = array( ':input[name="aar_user_roles"]' => $roleconditions);
+      }
+      else {
+        $visiblecondition = array();
+        foreach ($roleconditions as $key => $cond) {
+          $c = array();
+          switch ($stype) {
+            case "checkboxes":
+              $c = array(':input[name="aar_user_roles[' . $cond["value"] . ']"]' => array('checked' => TRUE));
+            break;
+            case "select":
+              //Doesn't work for the time being (can't find how to access multiple selected options)
+              $c = array(':input[name="aar_user_roles[]"]' => array("value" => array($cond["value"])));
+            break;
+          }
+          array_push($visiblecondition, $c);
+        }
+      } 
+  
+      if (sizeof($roleconditions) > 0) {        
+        $form['profile_' . $type_name]['#states'] = array('visible' => $visiblecondition);
+      } */
+    }
+  }
+  
+  //This 'autoassignrole_register_submit_before' is place as the beginning of the array because it override form values
+  //that will be used by the default submit handler "user_register_submit".
+  //That way we can use the default user creation process to assign custom role and admin approval requirement.
+  //TODO taking care of modules that also alter the $form['#submit"] value.
+  array_unshift($form['#submit'], 'autoassignrole_register_submit_before');
+  
+}
+
+function autoassignrole_register_submit_before(&$form, &$form_state) {
+  
+  $roles = array();
+  $aar_roles = $form_state['input']['aar_user_roles'];
+  $user_roles = user_roles(TRUE);
+  $approval_roles = variable_get('autoassignrole_roles_approval', array());
+  $target_status = 1;
+  
+  if (!is_array($aar_roles)) {
+    $roles[$aar_roles] = $user_roles[$aar_roles];
+    if (array_key_exists($aar_roles, $approval_roles) && !empty($approval_roles[$aar_roles])) {
+        $target_status = 0;    
+    }
+  }
+  else{
+    foreach ($aar_roles as $rid) {
+      if (!empty($rid) && array_key_exists($rid, $user_roles)) {
+        $roles[$rid] = $user_roles[$rid];
+        foreach ($approval_roles as $k => $v) {
+            if (array_key_exists($rid, $approval_roles) && !empty($approval_roles[$rid])) {
+                $target_status = 0;    
+            }
+        }
+      }
+    }
+  }
+  
+  
+  
+  $edit = array();
+  
+  $form_state['values']['roles'] = $roles;
+  $form_state['values']['status'] = $target_status;
+  
+}
+
+/*
+* Get roles id that have the permission edit own *profile* for a given profile.
+* This function is called in the user_register_form_alter above, to assign #states
+* to the right Profile 2 fields.
+*/
+
+function get_role_id_for_profile_type($ptype, $perms, $roles_names) {
+  
+  $conditions = array();
+  
+  foreach ($perms as $roleid => $v) {
+    $rolename = $roles_names[$roleid];
+    foreach ($v as $key => $val) {
+      if ($key == "edit own $ptype profile") {
+        array_push($conditions, array('value' => "$roleid"));
+      }
+    }
+  }
+  
+  return $conditions;
+}
+
+
+/**
+ * Implements hook_user_presave().
+ */
+function autoassignrole_user_presave(&$edit, $account, $category) {
+  // Use case http://drupal.org/node/971622
+  // Make sure we only assign roles automatically when enabled to do so.
+  if (variable_get('autoassignrole_auto_active', 0)) {
+
+    // Use case http://drupal.org/node/944864
+    // Only assign roles if this is a new account.
+    if (isset ($account->is_new) && !empty($account->is_new)) {
+      // Get the existing user roles with the exception of the anonymous role.
+      $user_roles = user_roles(TRUE);
+      $auto_roles = variable_get('autoassignrole_auto_roles', array());
+      // Add autoassignrole_auto_roles to the $edit['roles'] array if they are
+      // valid.
+      foreach ($auto_roles as $rid) {
+        // Dealing with checkbox values so anything greater than zero is valid
+        if (!empty($rid) && array_key_exists($rid, $user_roles)) {
+          $edit['roles'][$rid] = $user_roles[$rid];
+        }
+      }
+    }
+  }
+}

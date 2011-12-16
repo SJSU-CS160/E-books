@@ -1,0 +1,10 @@
+CHANGES LOG
+-----------
+
+2010/03/04
+* Initial releas
+
+2010/03/10
+* Added filters by Content Type
+* Added Show/Hide radio buttons
+* Added check for /user page to prevent locking system by incorrect settings

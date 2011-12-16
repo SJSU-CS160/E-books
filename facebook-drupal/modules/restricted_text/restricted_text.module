@@ -1,0 +1,183 @@
+<?php
+
+// $Id: restricted_text.module,v 1.3 2011/01/14 13:54:36 pooneil Exp $
+
+/**
+ * @file
+ * restricted_text is an input filter that lets text in a node
+ * be hidden based on the users roles, or other criteria established
+ * by modules
+ */
+ 
+/**
+ * Implementation of hook_filter_tips().
+ */
+function restricted_text_filter_tips($delta, $format, $long = false) {
+  if ($long) {
+    return "Restrict text from users by wrapping in [restrict] and [/restrict] tags. This will only allow authenticated users to see the text inside. If you wish to restrict by specific roles, you may user [restrict:roles=(some comma separated list of roles)]. Some modules may allow other restriction possibilities.";
+  }
+  else {
+    return "Restrict text from users by wrapping in [restrict] and [/restrict] tags.";
+  }
+}
+
+/**
+ * Implementation of hook_filter().
+ */
+function restricted_text_filter($op, $delta = 0, $format = -1, $text = '') {
+  switch ($op) {
+    case 'list':
+      return array(
+        0 => t('Restricted Text filter'),
+      );
+      break;
+    
+    case 'description':
+      return t('Hides text based on user roles');
+      break;
+    
+    case 'settings':
+      // This filter has no user settings
+      break;
+    
+    case 'no cache':
+      // This filter is not suggested for heavy use sites,
+      // because the module does not allow caching of text.
+      // If text was cached, it could not be properly displayed
+      // to different users.
+      return TRUE;
+      break;
+    
+    case 'prepare':
+      // We do all of our work during the 'prepare' stage. This keeps
+      // other filters from trying to do things that will not be displayed.
+      // I suggest putting this filter first in the list of evaluated filters
+      // for a given input format.
+      return restricted_text_prepare($text);
+      break;
+    
+    case 'process':
+      return $text;
+      break;
+    
+    default:
+      return $text;
+      break;
+  }
+}
+
+/**
+ * A small layer of encapsulation around the actual work of the module.
+ *
+ * This function could be replaced by an inline call to preg_replace_callback()
+ * in the switch statement above. Previous versions of the module did exactly that.
+ * However, the current implementation does not allow nested restrictions. I may
+ * want to change this in the future. If I do so, it will be cleaner to have this
+ * encapsulation function, as I will only need to modify it, and the changes
+ * will be better localized.
+ */
+function restricted_text_prepare($text) {
+  // This lovely piece of regular expression finds all of the [restrict][/restrict]
+  // blocks and passes them to the callback.
+  $text = preg_replace_callback('/\[restrict(?::(\w+)=([^\]]+))?\](.+?)\[\/restrict\]/sm', "_restricted_text_replace_callback", $text);
+  return $text;
+}
+
+/**
+ * For each block of text to be restricted, query the installed modules
+ * to determine if the user is allowed to see the text.
+ *
+ * @param $matches
+ *   $matches should be an array. Element 0 should be the entire text, including
+ *   the [restrict] and [/restrict] tags. Element 1 should be the type of restriction
+ *   requested (if present, otherwise should be empty). Element 2 should be the
+ *   parameters for the restriction. Element 3 should be the text to display,
+ *   if allowed
+ * @return
+ *   Element 3 of $matches, if the user is allowed to see it, otherwise ''.
+ */
+function _restricted_text_replace_callback($matches) {
+  // The $m array is totally unnecessary, but I find it easier
+  // to think about than "$matches[0]", etc.
+  $m = array(
+    'whole' => $matches[0],
+    'key' => $matches[1],
+    'params' => explode(',', $matches[2]),
+    'interior' => $matches[3],
+  );
+  
+  // The default case (when the tag is just [restrict]) is to
+  // restrict the text to users who are authenticated.
+  if (empty($m['key'])) {
+    $m['key'] = 'roles';
+    $m['params'] = array('authenticated user');
+  }
+  
+  // Pass the key and the parameters to the various modules that
+  // wish to provide restriction capabilities.
+  $allowed = module_invoke_all('restricted_text_allow', $m['key'], $m['params']);
+  
+  // The return values above should be whether or not each module allows
+  // the text to be displayed. So we use the logical and operation to reduce
+  // the array down to a single boolean value: is the user allowed to see
+  // the text or not. The default is TRUE, so we seed our reduce with TRUE.
+  $reduced = array_reduce($allowed, '_restricted_text_reduce_callback', TRUE);
+  
+  if ($reduced) {
+    return $m['interior'];
+  }
+  else {
+    return '';
+  }
+}
+
+function _restricted_text_reduce_callback($accum, $new) {
+  return ($accum and $new);
+}
+
+/**
+ * Implementation of hook_restricted_text_allow().
+ *
+ * This should more rightly be called user_restricted_text_allow().
+ *
+ * hook_restricted_text_allow() can be used by modules to enable other
+ * restriction schemes than just 'roles'.
+ *
+ * @param $key
+ *   $key is the kind of restriction being requested. The hook should
+ *   check that the value of $key is the one they wish to work with.
+ * @param $params
+ *   $params is an array of parameters the module needs.
+ * @return
+ *   The hook should return TRUE if the user is allowed to
+ *   see the text, FALSE if the user is not allowed to see
+ *   the text, or TRUE if the module does not make a decision.
+ */
+function restricted_text_restricted_text_allow($key, $params) {
+  global $user;
+  
+  // This callback implements the 'roles' restriction.
+  if ($key == 'roles') {
+    // By default, the user doesn't have the required roles.
+    $allowed = FALSE;
+    
+    // For each role that we are restricted to, check and see
+    // if the current user has that role. If so, allow the
+    // user to see the text.
+    if ( isset($params) ) {
+      foreach ($params as $role) {
+        if (in_array($role, $user->roles)) {
+          $allowed = TRUE;
+          break; // once it is true, we don't need to check any further
+        }
+      }
+    }
+    
+    return $allowed;
+  }
+  else {
+    // The key isn't 'roles', so we aren't interested in restricting
+    // the user. So we allow him to see the text.
+    return TRUE;
+  }
+}

@@ -1,0 +1,16 @@
+; $Id: time_limit.info,v 1.1 2010/03/04 16:15:30 hippich Exp $
+
+name = Time Limit
+description = Limit time anonymous users can browse site and redirect them to predifined page after some predefined amount of time.
+package = Yep Corp Limited
+core = 6.x
+version = "6.x-0.1"
+
+
+
+; Information added by drupal.org packaging script on 2010-04-13
+version = "6.x-1.1"
+core = "6.x"
+project = "time_limit"
+datestamp = "1271183110"
+

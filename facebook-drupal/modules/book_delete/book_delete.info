@@ -1,0 +1,11 @@
+; $Id: book_delete.info,v 1.1 2009/01/18 20:39:18 lynn Exp $
+name = Book Delete
+description = Adds ability to delete books to the book administration.
+core = 6.x
+dependencies[] = book
+; Information added by drupal.org packaging script on 2009-08-29
+version = "6.x-1.0"
+core = "6.x"
+project = "book_delete"
+datestamp = "1251559813"
+

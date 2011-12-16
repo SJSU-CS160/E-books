@@ -1,0 +1,60 @@
+/* $Id$ */
+
+/* ---------- Color Module Styles ----------- */
+
+body {
+  background-color: #292929;
+  color: #ffffff;
+}
+#page-wrapper,
+#main,
+body.overlay {
+  background-color: #ffffff;
+  color: #3b3b3b;
+}
+#main-menu-links li a.active,
+#main-menu-links li.active-trail a {
+  background: #ffffff;
+}
+.tabs ul.primary li a.active {
+  background-color: #ffffff;
+}
+.tabs ul.primary li.active a {
+  background-color: #ffffff;
+  border-bottom: 1px solid #ffffff;
+}
+#header {
+  background-color: #94002b;
+  background-image: -webkit-gradient(linear, 0% 0%, 0% 100%, from(#94002b), to(#d6003e));
+  background-image: -moz-linear-gradient(-90deg, #94002b, #d6003e);
+}
+a {
+  color: #94002b;
+}
+a:hover,
+a:focus {
+  color: inherit;
+}
+a:active {
+  color: inherit;
+}
+.sidebar .block {
+  background-color: #f1f1f1;
+  border-color: #f1f1f1;
+}
+#footer-wrapper {
+  background: #292929;
+}
+.region-header,
+.region-header a,
+.region-header li a.active,
+#header #name-and-slogan,
+#header #name-and-slogan a,
+#secondary-menu-links li a {
+  color: #fffeff;
+}
+
+#contentcols .block {
+  background-color: #F1F1F1;
+  border-color: #F1F1F1;
+}

@@ -1,0 +1,29 @@
+name = Order
+description = REQUIRED. Receive and manage orders through your website.
+dependencies[] = rules
+dependencies[] = views
+package = Ubercart - core
+core = 7.x
+files[] = uc_order.module
+files[] = tests/uc_order.test
+files[] = views/uc_order_handler_field_money_amount.inc
+files[] = views/uc_order_handler_field_order_actions.inc
+files[] = views/uc_order_handler_field_order_cc_data.inc
+files[] = views/uc_order_handler_field_order_cost.inc
+files[] = views/uc_order_handler_field_order_fullname.inc
+files[] = views/uc_order_handler_field_order_id.inc
+files[] = views/uc_order_handler_field_order_status.inc
+files[] = views/uc_order_handler_filter_country.inc
+files[] = views/uc_order_handler_filter_order_status.inc
+files[] = views/uc_order_handler_filter_payment_method.inc
+files[] = views/uc_order_handler_filter_zone.inc
+files[] = views/uc_order_plugin_row_invoice_view.inc
+configure = admin/store/settings/orders
+stylesheets[all][] = uc_order.css
+
+; Information added by drupal.org packaging script on 2011-10-07
+version = "7.x-3.0-rc2"
+core = "7.x"
+project = "ubercart"
+datestamp = "1318007807"
+

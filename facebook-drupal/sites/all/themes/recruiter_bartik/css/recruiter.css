@@ -1,0 +1,237 @@
+/* general font style */
+body, 
+#preview, 
+#header #site-slogan, 
+.ui-widget,
+div.field-type-taxonomy-term-reference { 
+  font-family: Tahoma, Helvetica, Arial, sans-serif;
+}
+
+h1#page-title, #preview h1#preview-page-title {
+  font-size: 1.5em;
+}
+
+#content h2, #preview #preview-block-system-main h2 {
+  font-size: 1.2em;
+}
+
+ul.action-links li a {
+  background: url("../images/add.png") no-repeat scroll left center transparent;
+}
+
+/* logo margin */
+#logo, #preview #preview-header #preview-logo {
+  padding: 30px 30px 20px 10px;
+}
+
+/* layout */
+.node-teaser {
+  margin-bottom:1em;
+  padding-bottom:0.5em;
+}
+
+/* table Style */
+table tr th {
+  border-top: 1px solid #3B3B3B;
+  border-bottom: 3px solid #3B3B3B;
+  background-color: #ffffff;
+  padding: 2px 9px 8px 9px;
+}
+
+table tr td {
+  border: 0px;
+}
+
+table tr.even,
+table tr.odd {
+  border: 0px;
+}
+
+table caption {
+  font-weight: bold;
+  font-size: 1.25em;
+  padding-bottom: 0.2em;
+}
+
+table thead tr th, 
+table thead tr th a, 
+table thead tr th a:hover {
+  color: #3B3B3B;
+}
+
+table tr.term-level-element-tag-cloud-row,
+table tr.views-row-last {
+  border-bottom: 1px solid #3B3B3B;
+}
+
+table tr.odd {
+  background-color: #ffffff;
+}
+
+table tr.even {
+  background-color: #ededed;
+}
+
+table td.active {
+  background-color: #ededed;
+}
+
+table.term-level-element-table {
+  margin: 1em 0em;
+}
+
+/* fields */
+.field-type-addressfield p {
+  margin: 0px;
+}
+
+.field-type-addressfield,
+.field-name-field-phone {
+  overflow: auto;
+}
+
+.field-type-addressfield .field-label,
+.field-type-addressfield .field-items {
+  float: left;
+}
+
+.field-name-field-phone .field-label,
+.field-name-field-phone .field-items {
+  float: left;
+}
+
+.term-level-field-label,
+.term-level-field-items {
+  float: left;
+}
+
+.field-label,
+.term-level-field-label {
+  width: 25%;
+}
+
+.field-type-term-level .field-item {
+  overflow: auto;
+}
+
+div.field-type-taxonomy-term-reference, {
+  font-family: inherit;
+}
+
+.field-type-taxonomy-term-reference .field-label {
+  font-weight: bold;
+  font-size: inherit;
+  color: #3B3B3B;
+  padding-right: 0px;
+}
+
+.field-type-taxonomy-term-reference .field-items, 
+.field-type-taxonomy-term-reference .field-item {
+  font-size: 1em;
+}
+
+.field-type-taxonomy-term-reference .field-label, 
+.field-type-taxonomy-term-reference ul.links {
+  font-family: inherit;
+  font-size: 1em;
+}
+
+.field-type-term-level {
+  margin: 0em;
+}
+
+span.term-level-label {
+  font-weight: bold;
+  font-style: normal;
+}
+
+/* profile resume */
+.profile2-resume .profile2-no-data {
+  display: block;
+  margin-bottom: 1em;
+}
+
+/* field collection */
+.field-collection-description {
+  margin: 0em 1em 1em 1.279em;
+  font-size: 0.821em;
+}
+
+/* Slim mode */
+.slim-mode #page-wrapper {
+  min-width: 720px;
+}
+.slim-mode #main {
+  width: 720px;
+}
+.slim-mode {
+  background-color: #ffffff;
+}
+
+/* Content cols */
+.region-contentcols-first,
+.region-contentcols-second {
+  width: 220px;
+  float: left;
+}
+
+.region-contentcols-first {
+  margin-right: 5px;
+}
+
+.region-contentcols-second {
+  margin-left: 5px;
+}
+
+#contentcols .block {
+  margin: 0 0 10px;
+  padding: 15px 20px;
+}
+
+#contentcols h2 {
+  border-bottom: 1px solid #D6D6D6;
+  font-size: 1.071em;
+  line-height: 1.2;
+  margin: 0 0 0.5em;
+  padding-bottom: 5px;
+  text-shadow: 0 1px 0 #FFFFFF;
+}
+
+#contentcols .block .content {
+    font-size: 0.914em;
+    line-height: 1.4;
+}
+
+/* Field Collection */
+.field-collection-view .term-level {
+  width: 100%;
+}
+
+.field-collection-view .term-level-field-items,
+.field-collection-view .content .field-items {
+  width: 75%;
+}
+
+.field-collection-view .field-type-term-level .field-items {
+  width: 100%;
+}
+
+/* Footer */
+#footer-wrapper .block {
+  border: none;
+}
+
+#footer-wrapper .block a {
+  font-weight: bold;
+}
+
+#footer-wrapper .block p {
+  margin: 0.5em 0em;
+}
+
+#footer-wrapper .block em {
+  font-style: normal;
+  font-size: 1.5em;
+  font-weight: bold;
+  color: #ffffff;
+}
