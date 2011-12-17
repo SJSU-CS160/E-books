@@ -7,9 +7,9 @@ dependencies[] = fb_form
 dependencies[] = fb_app
 dependencies[] = fb_friend
 
-; Information added by drupal.org packaging script on 2011-10-02
+; Information added by drupal.org packaging script on 2011-11-10
 version = "7.x-3.x-dev"
 core = "7.x"
 project = "fb"
-datestamp = "1317515001"
+datestamp = "1320927254"
 

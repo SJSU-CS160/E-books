@@ -16,17 +16,24 @@ function fb_tab_fb_admin($op, $data, &$return) {
   if ($op == FB_ADMIN_OP_SET_PROPERTIES) {
     $return['tab_default_name'] = $config['tab_default_name'];
 
-    if ($config['profile_tab_url']) {
-      $return['profile_tab_url'] = url($config['profile_tab_url'], array(
-                                         'absolute' => TRUE,
-                                         'fb_canvas' => FALSE,
-                                       ));;
+    if (function_exists('fb_url_inbound_alter')) {
+      $callback_url = url('', array('absolute' => TRUE)) . FB_SETTINGS_CB . '/' . $fb_app->id . '/';
+    }
+    else {
+      // Paving the way to make URL alters optional.
+      $callback_url = url('', array('absolute' => TRUE));
+    }
+
+    if ($config['tab_default_name']) {
+      $return['profile_tab_url'] = $callback_url . FB_TAB_PATH_VIEW;
+
       if (variable_get(FB_VAR_SECURE_URLS, FB_SECURE_URLS_SOMETIMES) >= FB_SECURE_URLS_SOMETIMES) {
         $return['secure_page_tab_url'] = str_replace('http://', 'https://', $return['profile_tab_url']) . '/'; // Must end with '/' ???
       }
       if (variable_get(FB_VAR_SECURE_URLS, FB_SECURE_URLS_SOMETIMES) <= FB_SECURE_URLS_SOMETIMES) {
         $return['profile_tab_url'] = str_replace('https://', 'http://', $return['profile_tab_url']);
       }
+
     }
     else {
       $return['profile_tab_url'] = '';
@@ -129,18 +136,26 @@ function fb_tab_admin_form_alter(&$form, &$form_state, $form_id) {
       '#default_value' => $config['tab_default_name'],
       '#description' => t('A very short title.'),
     );
+
     $form['fb_app_data']['fb_tab']['profile_tab_url'] = array(
       '#type' => 'textfield',
-      '#title' => 'Path',
+      '#title' => 'View path',
       '#default_value' => $config['profile_tab_url'],
-      '#description' => t('Recommended value is %tab_path.  You may choose another if you have defined a custom menu item or view.', array('%tab_path' => FB_TAB_PATH_VIEW)),
+      '#description' => t('Specify a Drupal page (i.e. "node/123") to render specific content in your page tab.  Or leave blank and implement <em>hook_fb_tab()</em> in your custom module.'),
+    );
+
+    $form['fb_app_data']['fb_tab']['profile_tab_url_liked'] = array(
+      '#type' => 'textfield',
+      '#title' => 'View path when page is liked',
+      '#default_value' => $config['profile_tab_url_liked'],
+      '#description' => t('Optionally specify another path when the user has liked the page where the tab is shown.  Leave blank to use <em>view path</em>.'),
     );
 
     $form['fb_app_data']['fb_tab']['edit_url'] = array(
       '#type' => 'textfield',
-      '#title' => 'Edit URL',
+      '#title' => 'Edit path',
       '#default_value' => $config['edit_url'],
-      '#description' => t('Recommended value is %edit_url.', array(
+      '#description' => t('Recommended value is %edit_url.  Implement <em>hook_fb_tab()</em> to customize the configuration form.', array(
                             '%edit_url' => FB_TAB_PATH_FORM,
                           )),
     );

@@ -663,9 +663,7 @@ function fb_is_canvas() {
 }
 
 /**
- * Is the current page a profile tab.
- *
- * Only works when "Canvas Session Parameter" is disabled.
+ * Is the current page a profile tab?
  */
 function fb_is_tab() {
   global $_fb;
@@ -683,6 +681,29 @@ function fb_is_tab() {
   }
   return FALSE;
 }
+
+/**
+ * Does the current user like the current page?
+ *
+ * Expect this to work only when fb_is_tab() returns TRUE.
+ */
+function fb_is_page_liked() {
+  global $_fb;
+  $sr = $_fb->getSignedRequest();
+  return (isset($sr['page']) && $sr['page']['liked']);
+}
+
+/**
+ * Does the current user administer the current page?
+ *
+ * Expect this to work only when fb_is_tab() returns TRUE.
+ */
+function fb_is_page_admin() {
+  global $_fb;
+  $sr = $_fb->getSignedRequest();
+  return (isset($sr['page']) && $sr['page']['admin']);
+}
+
 
 
 /**

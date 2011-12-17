@@ -61,6 +61,25 @@ function fb_tab_menu() {
   return $items;
 }
 
+
+/*
+ * Implements hook_custom_theme().
+ *
+ * For tab pages we use app-specific theme.  For this function to succeed,
+ * fb_tab.module must come after fb.module in the module weights (it is by
+ * default).
+ */
+function fb_tab_custom_theme() {
+  if (fb_is_tab()) {
+    // Get our configuration settings.
+    $config = _fb_tab_get_config($GLOBALS['_fb_app']);
+    if ($custom_theme = $config['custom_theme']) {
+      return $custom_theme;
+    }
+  }
+}
+
+
 /**
  * Implements hook_fb
  *
@@ -117,17 +136,13 @@ function fb_tab_fb($op, $data, &$return) {
   }
   elseif ($op == FB_OP_INITIALIZE) {
     if (fb_is_tab()) {
-      $config = _fb_tab_get_config($fb_app);
-      if (!isset($GLOBALS['custom_theme'])) {
-        $GLOBALS['custom_theme'] = $config['custom_theme'];
-      }
       if (fb_settings(FB_SETTINGS_TYPE) == FB_SETTINGS_TYPE_PAGE_TAB &&
           variable_get(FB_TAB_VAR_PROCESS_IFRAME, TRUE)) {
         // Process iframe
         $use_ob = TRUE;
       }
       elseif (fb_settings(FB_SETTINGS_TYPE) == FB_SETTINGS_TYPE_PROFILE &&
-          variable_get(FB_TAB_VAR_PROCESS_FBML, TRUE)) {
+              variable_get(FB_TAB_VAR_PROCESS_FBML, TRUE)) {
         // Process FBML
         $use_ob = TRUE;
       }
@@ -144,6 +159,22 @@ function fb_tab_fb($op, $data, &$return) {
       if ($use_ob) {
         ob_start();
         $GLOBALS['fb_tab_post_process'] = TRUE;
+      }
+
+      // Override what Drupal renders.
+      // FB_TAB_PATH_VIEW is fb_tab/view
+      if (arg(0) == 'fb_tab' AND arg(1) == 'view') { // Do not override fb_tab/config.
+        $sr = $fb->getSignedRequest();
+        if ($sr['page'] && $sr['page']['liked'] && $config['profile_tab_url_liked']) {
+          $path = $config['profile_tab_url_liked'];
+        }
+        else {
+          $path = $config['profile_tab_url'];
+        }
+        if ($path && $path != FB_TAB_PATH_VIEW) {
+          // Tell Drupal what to really render.
+          menu_set_active_item(drupal_get_normal_path($path));
+        }
       }
 
     }
@@ -206,7 +237,8 @@ function _fb_tab_get_config($fb_app) {
   $config += array(
     'custom_theme' => NULL,
     'tab_default_name' => isset($fb_app->title) ? $fb_app->title : NULL,
-    'profile_tab_url' => FB_TAB_PATH_VIEW,
+    'profile_tab_url' => NULL,
+    'profile_tab_url_liked' => NULL,
     'edit_url' => FB_TAB_PATH_FORM,
   );
   return $config;
@@ -224,11 +256,14 @@ function fb_tab_view() {
 
   $config = fb_tab_fetch_config($fb_app, $profile_id);
 
+  $sr = $fb->getSignedRequest();
+
   $data = array(
     'fb_app' => $fb_app,
     'fb' => $fb,
     'profile_id' => $profile_id,
     'config' => isset($config['data']) ? $config['data'] : NULL,
+    'page' => $sr['page'],
   );
 
   $content = fb_invoke(FB_TAB_OP_VIEW, $data, array(), FB_TAB_HOOK);
@@ -245,11 +280,14 @@ function fb_tab_config_form($form_state, $profile_id) {
 
   $config = fb_tab_fetch_config($fb_app, $profile_id);
 
+  $sr = $fb->getSignedRequest();
+
   $data = array(
     'fb_app' => $fb_app,
     'fb' => $fb,
     'profile_id' => $profile_id,
     'config' => isset($config['data']) ? $config['data'] : NULL,
+    'page' => $sr['page'],
   );
 
   try {
@@ -367,8 +405,10 @@ function fb_tab_fetch_config($fb_app, $profile_id) {
  */
 function fb_tab_pages() {
   if ($fbu = fb_facebook_user()) {
+
+    // @TODO: broken on facebook's end??? this query used to work.
     $result = fb_fql_query($GLOBALS['_fb'], "SELECT page_id, name, pic_small, page_url, type FROM page WHERE has_added_app=1 AND page_id IN (SELECT page_id FROM page_admin WHERE uid=$fbu)"); // FQL, no {curly_brackets}
-    //dpm($result, __FUNCTION__);
+
     if (count($result)) {
       $output['pages'] = array(
         '#prefix' => '<ul>',
