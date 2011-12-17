@@ -1,0 +1,936 @@
+<?php
+// $Id: book_access.module,v 1.23.2.7 2010/12/28 05:18:28 kiam Exp $
+
+/**
+ * @file
+ *
+ * Allows to set the access control for book nodes on a per book basis.
+ * Based on forum_access.module and tac_lite.module.
+ */
+
+final class BookAccess {
+  /**
+   * The API version implemented by the module.
+   */
+  const API_VERSION = '2.5';
+
+  /**
+   * The default priority used by the access grants implemented by the module.
+   */
+  const GRANT_PRIORITY =  0;
+
+  /**
+   * Adds author grants to book pages.
+   *
+   * @param $bid
+   *   The book ID.
+   * @param $uid
+   *   The user ID of the book author.
+   * @param $grants
+   *   An array of grants, in the format @code $grants[$grant] @endcode,
+   *   where @code $grant @endcode is a string between 'grant_view',
+   *   'grant_update', 'grant_delete', 'grant_admin_access', 'grant_add_child',
+   *   'grant_edit_outline'.
+   */
+  public static function addAuthorGrants($bid, $uid, array $grants) {
+    $row = new stdClass();
+    $row->nid = $bid;
+    $row->uid = $uid;
+
+    $bool = db_query_range(
+      "SELECT 1 FROM {book_access_author} WHERE nid = :nid AND uid = :uid",
+      0, 1, array(':nid' => $bid, ':uid' => $uid))->fetchField();
+
+    foreach (self::grantIDs() as $id) {
+      $row->$id = !empty($grants[$id]);
+    }
+
+    drupal_write_record('book_access_author', $row, $bool ? array('nid', 'uid') : array());
+  }
+
+  /**
+   * Adds role grants to book pages.
+   *
+   * @param $bid
+   *   The book ID.
+   * @param $rids
+   *   An array of role IDs for which to add the book grants.
+   * @param $grants
+   *   An array of grants, in the format @code $grants[$grant][$rid] @endcode,
+   *   where @code $grant @endcode is a string between 'grant_view',
+   *   'grant_update', 'grant_delete', 'grant_admin_access', 'grant_add_child',
+   *   'grant_edit_outline', and @code $rid @endcode is the role ID.
+   */
+  public static function addRoleGrants($bid, array $rids, array $grants) {
+    $row = new stdClass();
+    $row->nid = $bid;
+
+    foreach ($rids as $rid) {
+      $row->rid = $rid;
+
+      $bool = db_query_range(
+          "SELECT 1 FROM {book_access_role} WHERE nid = :nid AND rid = :rid",
+          0, 1, array(':nid' => $bid, ':rid' => $rid)
+        )->fetchField();
+
+      foreach (self::grantIDs() as $id) {
+        $row->$id = !empty($grants[$id][$rid]);
+      }
+
+      drupal_write_record('book_access_role', $row, $bool ? array('nid', 'rid') : array());
+    }
+  }
+
+  /**
+   * Adds user grants to book pages.
+   *
+   * @param $bid
+   *   The book ID.
+   * @param $uids
+   *   An array of user IDs for which to add the book grants.
+   * @param $grants
+   *   An array of grants, in the format @code $grants[$grant][$uid] @endcode,
+   *   where @code $grant @endcode is a string between 'grant_view',
+   *   'grant_update', 'grant_delete', 'grant_admin_access', 'grant_add_child',
+   *   'grant_edit_outline', and @code $uid @endcode is the user ID.
+   */
+  public static function addUserGrants($bid, array $uids, array $grants) {
+    foreach ($uids as $uid) {
+      $bool = db_query_range(
+        "SELECT 1 FROM {book_access_user} WHERE nid = :nid AND uid = :uid",
+        0, 1, array(':nid' => $bid, ':uid' => $uid)
+      )->fetchField();
+
+      $row = new stdClass();
+      $row->nid = $bid;
+      $row->uid = $uid;
+
+      foreach (self::grantIDs() as $id) {
+        $row->$id = !empty($grants[$id][$uid]);
+      }
+
+      drupal_write_record('book_access_user', $row, $bool ? array('nid', 'uid') : array());
+    }
+  }
+
+  /**
+   * Verifies the current API version is included between two values passed as
+   * arguments.
+   *
+   * @param $minimum
+   *   The minimum API version required.
+   * @param $maximum
+   *   The maximum version required. This argument is optional; the current API
+   *   will be checked against this value only if it is passed to the function.
+   *
+   * @return
+   *   TRUE, if the current API version is included between the passed values.
+   */
+  public static function api($minimum, $maximum = NULL) {
+    if (version_compare(self::API_VERSION, $minimum, '<')) {
+      return FALSE;
+    }
+
+    if (isset($maximum) && version_compare(self::API_VERSION, $maximum, '>')) {
+      return FALSE;
+    }
+
+    return TRUE;
+  }
+
+  /**
+   * Checks if a user has access to the book passed as argument.
+   *
+   * @param $bid
+   *   The ID of the book to check.
+   * @param $grant
+   *   The permission to check for.d
+   * @param $account
+   *   The user account for which the permission is checked; if it is not passed,
+   *   the permission is checked against the current logged in user.
+   *
+   * @return
+   *   TRUE if the user has the permission, FALSE otherwise.
+   */
+  public static function checkGrant($bid, $grant, $account = NULL) {
+    if (!isset($account)) {
+      $account = $GLOBALS['user'];
+    }
+
+    $roles = array_keys($account->roles);
+    $result = (
+      db_query_range(
+        "SELECT 1 FROM {book_access_author} WHERE nid = :nid AND uid = :uid AND grant_$grant > 0",
+        0, 1, array(':nid' => $bid, ':uid' => $account->uid)
+      )->fetchField() ||
+      db_query_range(
+        "SELECT 1 FROM {book_access_role} WHERE nid = :nid AND rid IN (:rid) AND grant_$grant > 0",
+          0, 1, array(':nid' => $bid, ':rid' => $roles)
+        )->fetchField() ||
+      db_query_range(
+          "SELECT 1 FROM {book_access_user} WHERE nid = :nid AND uid = :uid AND grant_$grant > 0",
+          0, 1, array(':nid' => $bid, ':uid' => $account->uid)
+        )->fetchField()
+    );
+
+    return $result;
+  }
+
+  /**
+   * Deletes the book access grants from the database.
+   *
+   * @param $value
+   *   The value to look for.
+   * param $field
+   *   The database field where to look the value. The currently accepted
+   *   values are 'bid', 'nid', 'uid', 'rid'.
+   * @param $types
+   *   An array of grants types for which the function deletes records; the
+   *   currently used values are 'author', 'role', 'user'. When this parameter
+   *   is not passed, the method
+   */
+  public static function deleteGrants($value, $field = 'nid', array $types = NULL) {
+    if (isset($types)) {
+      $tables = array();
+      foreach ($types as $type) {
+        switch ($type) {
+          case 'author':
+          case 'role':
+          case 'user':
+            $tables[] = "book_access_$type";
+            break;
+        }
+      }
+    }
+    else {
+      switch ($field) {
+        case 'bid':
+        case 'nid':
+          $tables = array('book_access_author', 'book_access_role', 'book_access_user');
+           break;
+
+        case 'uid':
+          $tables = array('book_access_author', 'book_access_user');
+          break;
+
+        case 'rid':
+          $tables = array('book_access_role');
+          break;
+
+        default:
+          $tables = array();
+      }
+    }
+
+    foreach ($tables as $table) {
+      db_delete($table)
+        ->condition($field, $value)
+        ->execute();
+    }
+  }
+
+  /**
+   * Returns the book author grants.
+   *
+   * @param $bid
+   *   The book ID.
+   * @param $uid
+   *   The user ID for the book author.
+   * @param $defaults
+   *   An array containing the default values for the grants.
+   *
+   * @return
+   *   An array of grants, in the format @code $grants[$grant] @endcode,
+   *   where @code $grant @endcode is a string between 'grant_view',
+   *   'grant_update', 'grant_delete', 'grant_admin_access', 'grant_add_child',
+   *   'grant_edit_outline'.
+   */
+  public static function getAuthorGrants($bid, $uid, array $defaults = array()) {
+    $grants = db_query_range(
+      'SELECT * FROM {book_access_author} WHERE nid = :nid AND uid = :uid',
+      0, 1, array(':nid' => $bid, ':uid' => $uid))->fetchAssoc();
+
+    if (!$grants) {
+      $defaults = array_filter($defaults);
+
+      foreach (self::grantIDs() as $id) {
+        $grants[$id] = !empty($defaults[$id]);
+      }
+    }
+
+    return $grants;
+  }
+
+  /**
+   * Lists all the books to which the current user has access.
+   *
+   * @param $account
+   *   The user account to use; if NULL, the currently logged in user account
+   *   will be used.
+   * @param $grants
+   *   An array containing one or more values between 'view', 'update',
+   *   'delete', 'admin_access', 'add_child', and 'edit_outline'.
+   *
+   * @return
+   *   An array containing the node ID of the books to which the user has access.
+   */
+  public static function getBookList(array $grants = array('update'), $account = NULL) {
+    $permitted_bids = array();
+
+    if (!isset($account)) {
+      $account = $GLOBALS['user'];
+    }
+
+    foreach ($grants as $grant) {
+      $result = db_query(
+        "SELECT nid FROM {book_access_author} WHERE uid = :uid AND grant_$grant > 0",
+        array(':uid' => $account->uid)
+      );
+
+      foreach ($result as $book) {
+        $permitted_bids[$book->nid] = $book->nid;
+      }
+
+      $roles = array_keys($account->roles);
+      $result = db_query(
+        "SELECT nid FROM {book_access_role} WHERE rid IN (:rid) AND grant_$grant > 0",
+        array(':rid' => $roles)
+      );
+
+      foreach ($result as $book) {
+        $permitted_bids[$book->nid] = $book->nid;
+      }
+
+      $result = db_query(
+        "SELECT nid FROM {book_access_user} WHERE uid = :uid AND grant_$grant > 0",
+        array(':uid' => $account->uid)
+      );
+
+      foreach ($result as $book) {
+        $permitted_bids[$book->nid] = $book->nid;
+      }
+    }
+
+    return $permitted_bids;
+  }
+
+  /**
+   * Gets the list of grant records assigned to a book.
+   *
+   * @param $bid
+   *   The ID of the book for which the function returns the grant records.
+   * @param $types
+   *   An array of grants types for which the function returns the records; the
+   *   currently used values are 'author', 'role', 'user'.
+   *
+   * @return
+   *   The array of grant records for the specified book.
+   */
+  public static function getGrantRecords($bid, array $types = array('author', 'role', 'user')) {
+    $grants = array();
+    $info = array();
+
+    foreach ($types as $type) {
+      switch ($type) {
+        case 'author':
+          $info[] = array(
+            'table' => 'book_access_author',
+            'gid' => 'uid',
+          );
+          break;
+
+        case 'role':
+          $info[] = array(
+            'table' => 'book_access_role',
+            'gid' => 'rid',
+          );
+          break;
+
+        case 'user':
+          $info[] = array(
+            'table' => 'book_access_user',
+            'gid' => 'uid',
+          );
+          break;
+      }
+    }
+
+    foreach ($info as $data) {
+      $result = db_query(
+        "SELECT * FROM {" . db_escape_table($data['table']) . "} WHERE nid = :nid",
+        array(':nid' => $bid)
+      );
+
+      foreach ($result as $grant) {
+        $grants[] = array(
+          'realm' => $data['table'],
+          'gid' => $grant->{$data['gid']},
+          'grant_view' => $grant->grant_view,
+          'grant_update' => $grant->grant_update,
+          'grant_delete' => $grant->grant_delete,
+          'priority' => self::GRANT_PRIORITY,
+        );
+      }
+    }
+
+    return $grants;
+  }
+
+  /**
+   * Returns the role book grants.
+   *
+   * @param $bid
+   *   The book ID.
+   * @param $roles
+   *   The variables where to store the value returned by user_roles().
+   * @param $defaults
+   *   An array containing the default values for the grants.
+   *
+   * @return
+   *   An array of grants, in the format @code $grants[$grant][$rid] @endcode,
+   *   where @code $grant @endcode is a string between 'grant_view',
+   *   'grant_update', 'grant_delete', 'grant_admin_access', 'grant_add_child',
+   *   'grant_edit_outline', and @code $rid @endcode is the role ID.
+   */
+  public static function getRoleGrants($bid, &$roles, array $defaults = array()) {
+    $grants = array(
+      'grant_view' => array(),
+      'grant_update' => array(),
+      'grant_delete' => array(),
+      'grant_admin_access' => array(),
+      'grant_add_child' => array(),
+      'grant_edit_outline' => array(),
+    );
+    $roles = user_roles();
+    $rcopy = $roles;
+
+    $rids = array_keys($roles);
+    $result = db_query(
+      "SELECT * FROM {book_access_role} WHERE nid = :nid AND rid IN (:rid)",
+      array(':nid' => $bid, ':rid' => $rids)
+    );
+
+    // Build the role access permissions for the book.
+    foreach ($result as $access) {
+      unset($rcopy[$access->rid]);
+
+      foreach (self::grantIDs() as $id) {
+        $grants[$id][$access->rid] = !empty($access->$id);
+      }
+    }
+
+    $defaults = array_filter($defaults);
+
+    // Set the default role access permissions for the roles that don't have
+    // access permissions already set.
+    foreach (self::grantIDs() as $id) {
+      foreach ($rcopy as $rid => $name) {
+        $grants[$id][$rid] = !empty($defaults[$id]);
+      }
+    }
+
+    return $grants;
+  }
+
+  /**
+   * Returns the user book grants.
+   *
+   * @param $bid
+   *   The book ID.
+   * @param $uids
+   *   The variables where to store the user IDs.
+   * @param $defaults
+   *   An array containing the default values for the grants.
+   *
+   * @return
+   *   An array of grants, in the format @code $grants[$grant][$uid] @endcode,
+   *   where @code $grant @endcode is a string between 'grant_view',
+   *   'grant_update', 'grant_delete', 'grant_admin_access', 'grant_add_child',
+   *   'grant_edit_outline', and @code $uid @endcode is the user ID.
+   */
+  public static function getUserGrants($bid, &$uids) {
+    $grants = array(
+      'grant_view' => array(),
+      'grant_update' => array(),
+      'grant_delete' => array(),
+      'grant_admin_access' => array(),
+      'grant_add_child' => array(),
+      'grant_edit_outline' => array(),
+    );
+    $uids = array();
+
+    $result = db_query(
+      "SELECT * FROM {book_access_user} bau INNER JOIN {users} u ON u.uid = bau.uid WHERE bau.nid = :nid",
+      array(':nid' => $bid)
+    );
+    foreach ($result as $access) {
+      $uid = $access->uid;
+      $uids[$uid] = $uid;
+
+      foreach (self::grantIDs() as $id) {
+        $grants[$id][$uid] = !empty($access->$id);
+      }
+    }
+
+    return $grants;
+  }
+
+  /**
+   * Returns the grant IDs implemented by the module.
+   */
+  public static function grantIDs() {
+    return array(
+      'grant_view', 'grant_update', 'grant_delete',
+      'grant_admin_access', 'grant_add_child', 'grant_edit_outline',
+    );
+  }
+
+  /**
+   * Restricts the options available to who moves book pages between books.
+   *
+   * @param $options
+   *   The options array used from book_outline_form() and the book edit form
+   *   for the list of books to which the page can be moved to.
+   * @param $account
+   *   The user account to use; if NULL, the currently logged in user account
+   *   will be used.
+   */
+  public static function restrictOptions(&$options, $account = NULL) {
+    if (!isset($account)) {
+      $account = $GLOBALS['user'];
+    }
+
+    if (user_access('administer nodes', $account)) {
+      return;
+    }
+
+    $permitted_bids = self::getBookList(array('update'), $account);
+
+    foreach ($options as $bid => $value) {
+      if ($bid > 0 && !isset($permitted_bids[$bid])) {
+        unset($options[$bid]);
+      }
+    }
+  }
+
+  /**
+   * Sets the author grants for book pages.
+   *
+   * The method delete the author grants before to set the new ones.
+   *
+   * @param $bid
+   *   The book ID.
+   * @param $uid
+   *   The user ID of the book author.
+   * @param $grants
+   *   An array of grants, in the format @code $grants[$grant] @endcode,
+   *   where @code $grant @endcode is a string between 'grant_view',
+   *   'grant_update', 'grant_delete', 'grant_admin_access', 'grant_add_child',
+   *   'grant_edit_outline'.
+   */
+  public static function setAuthorGrants($bid, $uid, array $grants) {
+    db_delete('book_access_author')
+      ->condition('nid', $bid)
+      ->execute();
+    self::addAuthorGrants($bid, $uid, $grants);
+  }
+
+  /**
+   * Sets the role grants for book pages.
+   *
+   * The method delete the role grants before to set the new ones.
+   *
+   * @param $bid
+   *   The book ID.
+   * @param $rids
+   *   An array of role IDs for which to add the book grants.
+   * @param $grants
+   *   An array of grants, in the format @code $grants[$grant][$rid] @endcode,
+   *   where @code $grant @endcode is a string between 'grant_view',
+   *   'grant_update', 'grant_delete', 'grant_admin_access', 'grant_add_child',
+   *   'grant_edit_outline', and @code $rid @endcode is the role ID.
+   */
+  public static function setRoleGrants($bid, array $rids, array $grants) {
+    db_delete('book_access_role')
+      ->condition('nid', $bid)
+      ->execute();
+    self::addRoleGrants($bid, $rids, $grants);
+  }
+
+  /**
+   * Sets the user grants for book pages.
+   *
+   * The method delete the user grants before to set the new ones.
+   *
+   * @param $bid
+   *   The book ID.
+   * @param $uids
+   *   An array of user IDs for which to add the book grants.
+   * @param $grants
+   *   An array of grants, in the format @code $grants[$grant][$uid] @endcode,
+   *   where @code $grant @endcode is a string between 'grant_view',
+   *   'grant_update', 'grant_delete', 'grant_admin_access', 'grant_add_child',
+   *   'grant_edit_outline', and @code $uid @endcode is the user ID.
+   */
+  public static function setUserGrants($bid, array $uids, array $grants) {
+    db_delete('book_access_user')
+      ->condition('nid', $bid)
+      ->execute();
+    self::addUserGrants($bid, $uids, $grants);
+  }
+
+  /**
+   * Updates the grants for a book.
+   *
+   * @param $bid
+   *   The book ID.
+   * @param $fields
+   *   The fields to update.
+   * @param $types
+   *   An array containing the grant types; the currently used values are
+   *   'author', 'role', 'user'. It is responsibility of the caller to use
+   *   values for $types for which $field is valid.
+   */
+  public static function updateGrants($bid, array $fields, array $types = array('author', 'role', 'user')) {
+    foreach ($types as $type) {
+      switch ($type) {
+        case 'author':
+        case 'role':
+        case 'user':
+          $table = "book_access_$type";
+          break;
+
+        default:
+          $table = '';
+      }
+
+      if ($table) {
+        db_update($table)
+          ->fields($fields)
+          ->condition('nid', $bid)
+          ->execute();
+      }
+    }
+  }
+
+  /*
+   * Writes the grant records to the Drupal node access table.
+   *
+   * @param $node
+   *   The node object for the book page.
+   * @param $types
+   *   An array of grants types that are written; the currently used values are
+   *   'author', 'role', 'user'.
+   */
+  public static function writeGrantRecords($node, array $types = array('author', 'role', 'user')) {
+    if (!empty($node->nid) && !empty($node->book['bid'])) {
+      foreach ($types as $type) {
+        switch ($type) {
+          case 'author':
+          case 'role':
+          case 'user':
+            $table = "book_access_$type";
+            break;
+
+          default:
+            $table = '';
+        }
+
+        if ($table && ($grants = self::getGrantRecords($node->book['bid'], array($type)))) {
+          node_access_write_grants($node, $grants, $table, TRUE);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Allows to access the Drupal variables used by the module.
+ */
+class BookAccessVars extends Vars {
+  /**
+   * Constructs a BookAccessVars object.
+   */
+  public function __construct() {
+   parent::__construct('book_access');
+  }
+
+  /**
+   * Implements Vars::getDefaults().
+   */
+  protected function getDefaults() {
+    return array(
+      'book_access_default_authors_access' => array('value' => array()),
+      'book_access_default_roles_access' => array('value' => array()),
+      'book_access_default_users_access' => array('value' => array()),
+    );
+  }
+}
+
+/**
+ * Implements hook_form_alter().
+ *
+ * @see book_outline_form()
+ * @see book_access_outline_form_submit()
+ * @see book_access_edit_form_submit()
+ *
+ */
+function book_access_form_alter(&$form, &$form_state, $form_id) {
+  if (isset($form['type']) && isset($form['#node']) && $form['type']['#value'] .'_node_form' == $form_id) {
+    if (isset($form['book']['bid']['#options'])) {
+      BookAccess::restrictOptions($form['book']['bid']['#options']);
+    }
+
+    $form['#submit'][] = 'book_access_edit_form_submit';
+  }
+  // When an outline is modified, the taxonomy is changed but the node is not
+  // saved; node grants can become broken if a book page is moved into
+  // another book. We fix that by adding an additional #submit callback
+  // to rebuild the grants when the book outline is modified.
+  elseif ($form_id == 'book_outline_form') {
+    if (isset($form['book']['bid']['#options'])) {
+      BookAccess::restrictOptions($form['book']['bid']['#options']);
+    }
+
+    $form['#submit'][] = 'book_access_outline_form_submit';
+
+    if (isset($form['remove'])) {
+      $form['remove']['#submit'][] = 'book_access_edit_form_submit';
+    }
+  }
+}
+
+/**
+ * Implements hook_node_view_alter().
+ *
+ * Enables the link "Add child page" only for users who have the right
+ * permission.
+ */
+function book_access_node_view_alter(&$build) {
+  if (!empty($node->book['bid']) && !empty($build['links']['book']['#links'])) {
+    $links = $build['links']['book']['#links'];
+    $node = $build['#node'];
+
+    if (user_access('administer nodes')) {
+      return;
+    }
+
+    if (!empty($links['book_add_child'])) {
+    $vars = new BookAccessVars();
+
+    $bool = (
+      (
+        (
+          user_access('add content to books') &&
+          BookAccess::checkGrant($node->book['bid'], 'add_child')
+        ) ||
+        user_access('administer book outlines')
+      ) &&
+      node_access('create', $vars['book_child_type']) &&
+      ($node->status == 1) &&
+      ($node->book['depth'] < MENU_MAX_DEPTH)
+    );
+
+    if (!$bool) {
+      unset($links['book_add_child']);
+    }
+  }
+  }
+}
+
+/**
+ * Implements hook_menu_alter().
+ *
+ * @see _book_access_outline_access()
+ * @see book_access_outline_remove_access()
+ */
+function book_access_menu_alter(&$items) {
+  if (isset($items['node/%node/outline'])) {
+    $items['node/%node/outline']['access callback'] = '_book_access_outline_access';
+  }
+
+  if (isset($items['node/%node/outline/remove'])) {
+    $items['node/%node/outline/remove']['access callback'] = '_book_access_outline_remove_access';
+  }
+}
+
+/**
+ * Implements hook_node_access_explain().
+ *
+ * hook_node_access_explain() is defined in devel_node_access.module, which
+ * helps you to figure out how node access works and what permissions are
+ * currently granted.
+ */
+function book_access_node_access_explain($row) {
+  static $roles = NULL;
+  $result = array();
+
+  if ($row->realm == 'book_access_author') {
+    $result = array(
+      t('Grants for book authors')
+    );
+  }
+  elseif ($row->realm == 'book_access_role') {
+    if (!isset($roles)) {
+      $roles = user_roles();
+    }
+
+    if (isset($roles[$row->gid])) {
+      $result = array(
+        t('Grants for users of role %role',
+          array('%role' => $roles[$row->gid])
+        )
+      );
+    }
+    else {
+      $result = array(
+        t('Unknown group ID %gid',
+          array('%gid' => $row->gid)
+        )
+      );
+    }
+  }
+  elseif ($row->realm == 'book_access_user') {
+    if ($user = user_load(array('uid' => $row->gid))) {
+      $result = array(
+        t('Grants for user %username',
+          array('%username' => $user->name)
+        )
+      );
+    }
+    else {
+      $result = array(
+        t('Unknown user ID %gid',
+          array('%gid' => $row->gid)
+        )
+      );
+    }
+  }
+
+  return $result;
+}
+
+/**
+ * Implements hook_node_access_records().
+ *
+ * Returns a list of grant records for the book node object passed as argument.
+ * If we have a book child page, we return the access settings of the top level
+ * parent book page node.
+ */
+ function book_access_node_access_records($node) {
+  $grants = array();
+
+  if (!empty($node->book['bid'])) {
+    $grants = BookAccess::getGrantRecords($node->book['bid']);
+  }
+
+  return $grants;
+}
+
+/**
+ * Implements hook_node_delete().
+ */
+function book_access_node_delete($node) {
+  BookAccess::deleteGrants($node->nid);
+}
+
+/**
+ * Implements hook_node_grants().
+ */
+function book_access_node_grants($account, $op) {
+  $grants = array();
+
+  $grants['book_access_author'] = array($account->uid);
+  $grants['book_access_role'] = array_keys($account->roles);
+  $grants['book_access_user'] = array($account->uid);
+
+  return $grants;
+}
+
+/**
+ * Implements hook_node_update().
+ */
+function book_access_node_update($node) {
+  BookAccess::deleteGrants($node->nid);
+}
+
+/**
+ * Implements hook_permission().
+ */
+function book_access_permission() {
+  return array(
+    'administer book access' => array(
+      'title' => t('Administer book access')
+    ),
+    'administer access of any book' => array(
+      'title' => t('Administer access of any book')
+    ),
+    'administer access of own books' => array(
+      'title' => t('Administer access of own books')
+    ),
+  );
+}
+
+/**
+ * Implements hook_user_delete().
+ */
+function book_access_user_delete($account) {
+  BookAccess::deleteGrants($account->uid, 'uid');
+}
+
+/**
+ * Form submission callback for node_form(), and book_outline_form().
+ *
+ * @see node_form()
+ * @see book_outline_form()
+ * @see book_access_form_alter()
+ */
+function book_access_edit_form_submit($form, &$form_state) {
+  BookAccess::writeGrantRecords($form['#node']);
+}
+
+/**
+ * Form submission callback for book_outline_form().
+ *
+ * @see book_outline_form()
+ * @see book_access_form_alter()
+ */
+function book_access_outline_form_submit($form, &$form_state) {
+  if (isset($form['plid']) && $form['plid'] != $form_state['values']['plid']) {
+    BookAccess::writeGrantRecords($form['#node']);
+  }
+}
+
+/**
+ * Determines if the outline tab is accessible.
+ *
+ * @see book_access_menu_alter()
+ */
+function _book_access_outline_access($node) {
+  if (empty($node->book['bid'])) {
+    return FALSE;
+  }
+
+  $view_access = node_access('view', $node);
+
+  if (user_access('administer book outlines') && $view_access) {
+    return TRUE;
+  }
+
+  return BookAccess::checkGrant($node->book['bid'], 'edit_outline') && $view_access;
+}
+
+/**
+ * Determines if the user can remove nodes from the outline.
+ *
+ * @see book_access_menu_alter()
+ */
+function _book_access_outline_remove_access($node) {
+  $bool = (
+    !empty($node->book['bid']) &&
+    ($node->book['bid'] != $node->nid) &&
+    _book_access_outline_access($node)
+  );
+
+  return $bool;
+}

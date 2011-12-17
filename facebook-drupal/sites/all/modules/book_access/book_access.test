@@ -1,0 +1,255 @@
+<?php
+// $Id: book_access.test,v 1.3.2.1 2011/01/05 21:59:28 kiam Exp $
+
+class BookAccessRuleTestCase extends DrupalWebTestCase {
+  protected $author;
+
+  public static function getInfo() {
+    return array(
+      'name' => 'Book access rule test',
+      'description' => 'Create a book, add pages, and test the access functionality.',
+      'group' => 'Book access',
+    );
+  }
+
+  function setUp() {
+    parent::setUp('book', 'vars', 'book_access');
+
+    $this->author = $this->drupalCreateUser(array(
+      'administer access of own books', 'add content to books', 'create book content',
+      'create new books', 'edit own book content', 'access content')
+    );
+  }
+
+  /**
+   * Creates a new book with a page hierarchy.
+   */
+  protected function createBook(&$books, &$nodes, $pages = 2) {
+    $this->drupalLogin($this->author);
+
+    $books[] = $book = $this->createBookNode('new');
+
+    while ($pages--) {
+      $nodes[] = $this->createBookNode($book->nid);
+    }
+
+    $this->drupalLogout();
+  }
+
+ /**
+   * Creates a book node.
+   *
+   * @param $bid
+   *   The book ID, or 'new' to create new book.
+   * @param $parent
+   *   Parent book ID.
+   */
+  /**
+   * Create book node.
+   *
+   * @param integer $book_nid Book node id or set to 'new' to create new book.
+   * @param integer $parent Parent book reference id.
+   */
+  function createBookNode($bid) {
+    $edit = array();
+    $langcode = LANGUAGE_NONE;
+
+    $edit["title"] = $this->randomName(10) . ' - book access test node: ' . $this->randomName(10);
+    $edit["body[$langcode][0][value]"] = 'Book access test body ' . $this->randomName(32) . ' (' . $this->randomName(32) .').';
+    $edit['book[bid]'] = $bid;
+
+    $this->drupalPost('node/add/book', $edit, t('Save'));
+
+    // Check to make sure the book node was created.
+    $node = $this->drupalGetNodeByTitle($edit['title']);
+    $this->assertTrue($node !== FALSE, t('Book node found in database.'));
+
+    return $node;
+  }
+
+  function testAuthorAccess() {
+    $books = array();
+    $nodes = array();
+
+    // Create the test books.
+    $this->createBook($books, $nodes);
+    $this->createBook($books, $nodes);
+    $this->drupalLogin($this->author);
+
+    // Verify if the user has access to the book pages.
+    foreach ($nodes as $node) {
+      $nid = $node->nid;
+      $this->drupalGet('node/' . $nid);
+      if ($this->assertResponse('200', t('The author can view the book page %nid.', array('%nid' => $nid)))) {
+        $this->assertLink(t('Add child page'), 0, t('The author can add child pages to the book page %nid.', array('%nid' => $nid)));
+        $this->drupalGet('node/' . $nid . '/book_access');
+        $this->assertResponse('200', t('The author can change the permission for the book page %nid.', array('%nid' => $nid)));
+        $this->drupalGet('node/' . $nid . '/delete');
+        $this->assertResponse('403', t('The author cannot delete the book page %nid.', array('%nid' => $nid)));
+        $this->drupalGet('node/' . $nid . '/edit');
+        $this->assertResponse('200', t('The author can edit the book page %nid.', array('%nid' => $nid)));
+        $this->drupalGet('node/' . $nid . '/outline');
+        $this->assertResponse('403', t('The author cannot edit the outline for the book page %nid.', array('%nid' => $nid)));
+      }
+    }
+
+    $this->drupalLogout();
+  }
+
+  function testBookAdministratorAccess() {
+    $books = array();
+    $nodes = array();
+
+    // Create the test books.
+    $this->createBook($books, $nodes);
+    $this->createBook($books, $nodes);
+
+    $this->drupalLogin($this->drupalCreateUser(
+      array('administer book access', 'access content')
+    ));
+
+    // Verify if the user has access to the book pages.
+    foreach ($nodes as $node) {
+      $nid = $node->nid;
+      $this->drupalGet('node/' . $nid);
+      if ($this->assertResponse('200', t('The book access administrator user can view the book page %nid.', array('%nid' => $nid)))) {
+        $this->assertNoLink(t('Add child page'), t('The book access administrator user cannot add child pages to the book page %nid.', array('%nid' => $nid)));
+        $this->drupalGet('node/' . $nid . '/book_access');
+        $this->assertResponse('200', t('The book access administrator user can change the permission for the book page %nid.', array('%nid' => $nid)));
+        $this->drupalGet('node/' . $nid . '/delete');
+        $this->assertResponse('403', t('The book access administrator user cannot delete the book page %nid.', array('%nid' => $nid)));
+        $this->drupalGet('node/' . $nid . '/edit');
+        $this->assertResponse('403', t('The book access administrator user cannot edit the book page %nid.', array('%nid' => $nid)));
+        $this->drupalGet('node/' . $nid . '/outline');
+        $this->assertResponse('403', t('The book access administrator user cannot edit the outline for the book page %nid.', array('%nid' => $nid)));
+      }
+    }
+
+    $this->drupalLogout();
+  }
+
+  function testBookOutlineAdministratorAccess() {
+    $books = array();
+    $nodes = array();
+
+    // Create the test books.
+    $this->createBook($books, $nodes);
+    $this->createBook($books, $nodes);
+
+    $this->drupalLogin($this->drupalCreateUser(
+      array('administer access of any books', 'access content')
+    ));
+
+    // Verify if the user has access to the book pages.
+    foreach ($nodes as $node) {
+      $nid = $node->nid;
+      $this->drupalGet('node/' . $nid);
+      if ($this->assertResponse('200', t('The book outline administrator user can view the book page %nid.', array('%nid' => $nid)))) {
+        $this->assertNoLink(t('Add child page'), t('The book outline administrator user cannot add child pages to the book page %nid.', array('%nid' => $nid)));
+        $this->drupalGet('node/' . $nid . '/book_access');
+        $this->assertResponse('200', t('The book outline administrator user can change the permission for the book page %nid.', array('%nid' => $nid)));
+        $this->drupalGet('node/' . $nid . '/delete');
+        $this->assertResponse('403', t('The book outline administrator user cannot delete the book page %nid.', array('%nid' => $nid)));
+        $this->drupalGet('node/' . $nid . '/edit');
+        $this->assertResponse('403', t('The book outline administrator user cannot edit the book page %nid.', array('%nid' => $nid)));
+        $this->drupalGet('node/' . $nid . '/outline');
+        $this->assertResponse('403', t('The user %uid cannot edit the outline for the book page %nid.', array('%nid' => $nid)));
+      }
+    }
+
+    $this->drupalLogout();
+  }
+
+  function testNodeAdministratorAccess() {
+    $books = array();
+    $nodes = array();
+
+    // Create the test books.
+    $this->createBook($books, $nodes);
+    $this->createBook($books, $nodes);
+
+    $this->drupalLogin($this->drupalCreateUser(
+      array('administer nodes', 'access content')
+    ));
+
+    // Verify if the user has access to the book pages.
+    foreach ($nodes as $node) {
+      $nid = $node->nid;
+      $this->drupalGet('node/' . $nid);
+      if ($this->assertResponse('200', t('The node administrator user can view the book page %nid.', array('%nid' => $nid)))) {
+        $this->assertNoLink(t('Add child page'), t('The node administrator user cannot add child pages to the book page %nid.', array('%nid' => $nid)));
+        $this->drupalGet('node/' . $nid . '/book_access');
+        $this->assertResponse('200', t('The node administrator user can change the permission for the book page %nid.', array('%nid' => $nid)));
+        $this->drupalGet('node/' . $nid . '/delete');
+        $this->assertResponse('200', t('The node administrator user can delete the book page %nid.', array('%nid' => $nid)));
+        $this->drupalGet('node/' . $nid . '/edit');
+        $this->assertResponse('200', t('The node administrator user can edit the book page %nid.', array('%nid' => $nid)));
+        $this->drupalGet('node/' . $nid . '/outline');
+        $this->assertResponse('403', t('The node administrator user cannot edit the outline for the book page %nid.', array('%nid' => $nid)));
+      }
+    }
+
+    $this->drupalLogout();
+  }
+
+  function testUserAccess() {
+    $books = array();
+    $grants = array();
+    $nodes = array();
+
+    // Create the test books.
+    $this->createBook($books, $nodes);
+    $this->createBook($books, $nodes);
+
+    $user = $this->drupalCreateUser(array('access content'));
+    $uids = array($user->uid);
+
+    $grants['grant_view'][$user->uid] = TRUE;
+    $grants['grant_update'][$user->uid] = (bool) mt_rand(0,1);
+    $grants['grant_delete'][$user->uid] = (bool) mt_rand(0,1);
+    $grants['grant_admin_access'][$user->uid] = (bool) mt_rand(0,1);
+    $grants['grant_add_child'][$user->uid] = FALSE;
+    $grants['grant_edit_outline'][$user->uid] = (bool) mt_rand(0,1);
+
+    foreach ($books as $node) {
+      BookAccess::setUserGrants($node->book['bid'], $uids, $grants);
+    }
+
+    foreach ($nodes as $node) {
+      BookAccess::writeGrantRecords($node);
+    }
+
+    $this->drupalLogin($user);
+
+    // Verify if the user has access to the book pages.
+    foreach ($nodes as $node) {
+      $nid = $node->nid;
+      $this->drupalGet('node/' . $nid);
+      if ($this->assertResponse('200', t('The user %uid can view the book page %nid.', array('%uid' => $user->uid, '%nid' => $nid)))) {
+        $this->assertNoLink(t('Add child page'), t('The user %uid cannot add child pages to the book page %nid.', array('%uid' => $user->uid, '%nid' => $nid)));
+        $this->drupalGet('node/' . $nid . '/book_access');
+        $this->assertResponse(
+          $grants['grant_admin_access'][$user->uid] ? '200' : '403',
+          t($grants['grant_admin_access'][$user->uid] ? 'The user %uid can change the permission for the book page %nid.' : 'The user %uid cannot change the permission for the book page %nid.', array('%uid' => $user->uid, '%nid' => $nid))
+        );
+        $this->drupalGet('node/' . $nid . '/delete');
+        $this->assertResponse(
+          $grants['grant_delete'][$user->uid] ? '200' : '403',
+          t($grants['grant_delete'][$user->uid] ? 'The user %uid can delete the book page %nid.' : 'The user %uid cannot delete the book page %nid.', array('%uid' => $user->uid, '%nid' => $nid))
+        );
+        $this->drupalGet('node/' . $nid . '/edit');
+        $this->assertResponse(
+          $grants['grant_update'][$user->uid] ? '200' : '403',
+          t($grants['grant_update'][$user->uid] ? 'The user %uid can edit the book page %nid.' : 'The user %uid cannot edit the book page %nid.', array('%uid' => $user->uid, '%nid' => $nid))
+        );
+        $this->drupalGet('node/' . $nid . '/outline');
+        $this->assertResponse(
+          $grants['grant_edit_outline'][$user->uid] ? '200' : '403',
+          t($grants['grant_edit_outline'][$user->uid] ? 'The user %uid can edit the outline for the book page %nid.' : 'The user %uid cannot edit the outline for the book page %nid.', array('%uid' => $user->uid, '%nid' => $nid))
+        );
+      }
+    }
+
+    $this->drupalLogout();
+  }
+}

@@ -1,0 +1,13 @@
+name = Drag'n'Drop Uploads
+description = Adds Drag'n'Drop file upload functonality.
+core = 7.x
+files[] = dragndrop_uploads.module
+files[] = modules/file.inc
+files[] = modules/image.inc
+
+; Information added by drupal.org packaging script on 2011-02-25
+version = "7.x-1.x-dev"
+core = "7.x"
+project = "dragndrop_uploads"
+datestamp = "1298619131"
+

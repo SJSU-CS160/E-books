@@ -1,0 +1,44 @@
+# $Id: CHANGELOG.txt,v 1.5.2.6 2010/12/27 03:50:36 kiam Exp $
+# All the dates reported here are referred to UTC.
+
+2010-12-27
+----------
+#1005482 by kiam: After creating new book page in permitted book, book access shows all books.
+
+2010-12-22
+----------
+#1004260 by kiam: A call to db_query() uses wrong parameters and doesn't pass the table name to db_escape_table().
+
+2010-12-04
+----------
+#987416 by kiam: Display the name of the book author on the permissions tab.
+#987508 by kiam: Installation file has not been updated to Drupal 7.
+
+2010-12-01
+----------
+#900208 by kiam: Drupal 7 port.
+
+2010-10-26
+----------
+#362291 by kiam: How about a SimpleTest for Book Access?
+
+2010-09-25
+----------
+#842992 by kiam: Book Access API.
+#921730 by kiam: Implement more book permissions.
+
+2010-09-24
+----------
+#920422 by kiam: Add the permission "edit outline".
+#921284 by kiam: Implement more permissions.
+#921776 by kiam: Change usernames in links to user profiles.
+#920570 by kiam: Add support for the pseudo-role "author".
+
+2010-09-23
+----------
+#911472 by kiam: Warning messages when accessing /admin/by-module.
+#891492 by kiam: Avoid full node access rebuilding.
+
+2010-07-05
+----------
+#834978 by kiam: Class BookAccessVars is not found.

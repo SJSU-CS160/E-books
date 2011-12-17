@@ -17,7 +17,7 @@ Drupal.behaviors.fb_canvas = {
         jQuery(document).bind('fb_init', FB_Canvas.setAutoResize);
       }
       else {
-        // FB alreda initialized.
+        // FB already initialized.
         FB_Canvas.setAutoResize();
       }
     });

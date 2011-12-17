@@ -1,0 +1,17 @@
+; $Id: book_access.info,v 1.9.2.3 2011/01/05 21:59:28 kiam Exp $
+
+name = Book access
+description = Allows setting the access control for book nodes on a per book basis.
+package = Access control
+core = 7.x
+dependencies[] = book
+dependencies[] = vars (2.x)
+files[] = book_access.module
+files[] = book_access.test
+
+; Information added by drupal.org packaging script on January 1, 1970 - 00:00
+version = "7.x-2.0-alpha4"
+core = "7.x"
+project = "book_access"
+datestamp = "1295867055"
+

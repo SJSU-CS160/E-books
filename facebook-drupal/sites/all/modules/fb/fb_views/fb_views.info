@@ -1,19 +1,14 @@
 name = FB Views
 description = (fb_views.module) Provides features specific to Views module for Facebook Apps.
 package= Drupal for Facebook
-core = 7.x
+core = 6.x
 dependencies[] = fb
 dependencies[] = fb_user
 dependencies[] = views
 
-files[] = fb_views_handler_author_is_friend.inc
-files[] = fb_views_handler_filter_friends.inc
-files[] = fb_views_handler_filter_profile_tab.inc
-files[] = fb_views_handler_profile_pic.inc
-
-; Information added by drupal.org packaging script on 2011-10-02
+; Information added by drupal.org packaging script on 2011-11-10
 version = "7.x-3.x-dev"
 core = "7.x"
 project = "fb"
-datestamp = "1317515001"
+datestamp = "1320927254"
 
