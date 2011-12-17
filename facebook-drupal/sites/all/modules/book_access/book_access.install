@@ -1,0 +1,260 @@
+<?php
+// $Id: book_access.install,v 1.10.2.2 2010/12/27 03:50:36 kiam Exp $
+
+/**
+ * Implements hook_enable().
+ */
+function book_access_enable() {
+  node_access_needs_rebuild();
+}
+
+/**
+ * Implements hook_disable().
+ */
+function book_access_disable() {
+  node_access_needs_rebuild();
+}
+
+/**
+ * Implements hook_schema().
+ */
+function book_access_schema() {
+  $schema = array();
+
+  $schema['book_access_author'] = array(
+    'description' => 'Table for tracking book access by author.',
+    'fields' => array(
+      'nid' => array(
+        'description' => 'Primary key: The node ID of the book.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'uid' => array(
+        'description' => 'Primary key: The user ID of the book author.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'grant_view' => array(
+        'description' => 'View book pages permission.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'grant_update' => array(
+        'description' => 'Edit book pages permission.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'grant_delete' => array(
+        'description' => 'Delete book pages permission.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'grant_admin_access' => array(
+        'description' => 'Administer book access permission.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'grant_add_child' => array(
+        'description' => 'Add child pages permission.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'grant_edit_outline' => array(
+        'description' => 'Edit book outlines permission.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('nid', 'uid'),
+  );
+
+  $schema['book_access_role'] = array(
+    'description' => 'Table for tracking book access.',
+    'fields' => array(
+      'nid' => array(
+        'description' => 'Primary key: The node ID of the book.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'rid' => array(
+        'description' => 'Primary key: The role ID associated with a book node ID.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'grant_view' => array(
+        'description' => 'View book pages permission.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'grant_update' => array(
+        'description' => 'Edit book pages permission.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'grant_delete' => array(
+        'description' => 'Delete book pages permission.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'grant_admin_access' => array(
+        'description' => 'Administer book access permission.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'grant_add_child' => array(
+        'description' => 'Add child pages permission.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'grant_edit_outline' => array(
+        'description' => 'Edit book outlines permission.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('nid', 'rid'),
+  );
+
+  $schema['book_access_user'] = array(
+    'description' => 'Table for tracking book access by user.',
+    'fields' => array(
+      'nid' => array(
+        'description' => 'Primary key: The node ID of the book.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'uid' => array(
+        'description' => 'Primary key: The user ID associated with a book node ID.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'grant_view' => array(
+        'description' => 'View book pages permission.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'grant_update' => array(
+        'description' => 'Edit book pages permission.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'grant_delete' => array(
+        'description' => 'Delete book pages permission.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'grant_admin_access' => array(
+        'description' => 'Administer book access permission.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'grant_add_child' => array(
+        'description' => 'Add child pages permission.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'grant_edit_outline' => array(
+        'description' => 'Edit book outlines permission.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('nid', 'uid'),
+  );
+
+  return $schema;
+}
+
+/**
+ * Implements hook_install().
+ */
+function book_access_install() {
+  db_update('system')
+    ->fields(array('weight' => 2))
+    ->condition('name', 'book_access')
+    ->execute();
+
+  $vars = new BookAccessVars();
+  $vars->saveDefaults();
+}
+
+/**
+ * Removes spurius entries in the node access tables that cause users to see
+ * books they should not see.
+ */
+function book_access_update_7200() {
+  db_delete('node_access')
+    ->condition('nid', 0)
+    ->execute();
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function book_access_uninstall() {
+  $vars = new BookAccessVars();
+  $vars->removeDefaults();
+}

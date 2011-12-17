@@ -1,0 +1,41 @@
+# $Id: API.txt,v 1.2 2010/11/27 20:27:25 kiam Exp $
+# This files reports the API changes, and in which versions has been done.
+#
+
+VERSION 2.2
+-----------
+
+- The functions book_access_api(), book_access_author_add(),
+  book_access_author_records(), book_access_role_add(),
+  book_access_grant_check(), book_access_role_records(),
+  book_access_user_add(), book_access_user_books_list(),
+  book_access_user_records() have been added.
+
+VERSION 2.3
+-----------
+
+- The function book_access_api() has been replaced by BookAccess::api().
+- The function book_access_author_add() has been replaced by
+  BookAccess::addAuthorGrants().
+- The functions book_access_author_records(), book_access_role_records(), and
+  book_access_user_records() have been replaced by
+  BookAccess::getGrantRecords().
+- The function book_access_grant_check() has been replaced by
+  BookAccess::checkGrant().
+- The function _book_access_options_restrict() has been replaced by
+  BookAccess::restrictOptions().
+- The function book_access_role_add() has been replaced by
+  BookAccess::addRoleGrants().
+- The function book_access_user_add() has been replaced by
+  BookAccess::addUserGrants().
+- The function book_access_books_list() has been replaced by
+  BookAccess::getBookList().
+- The methods BookAccess::deleteGrants(), BookAccess::getAuthorGrants(),
+  BookAccess::getRoleGrants(), BookAccess::getUserGrants(),
+  BookAccess::grantIDs(), BookAccess::updateGrants(), and
+  BookAccess::writeGrantRecords() have been added.
+
+VERSION 2.4
+-----------
+
+- The arguments for BookAccess::getBookList() has been swapped.

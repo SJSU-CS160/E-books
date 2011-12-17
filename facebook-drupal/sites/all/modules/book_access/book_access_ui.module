@@ -1,0 +1,197 @@
+<?php
+// $Id: book_access_ui.module,v 1.5.2.2 2010/12/28 05:18:28 kiam Exp $
+
+/**
+ * @file
+ *
+ * User interface for the Book access module.
+ */
+
+/**
+ * Implements hook_admin_paths().
+ */
+function book_access_ui_admin_paths() {
+  $paths = array();
+  $vars = new BookAccessVars();
+
+  if ($vars['node_admin_theme']) {
+    $paths['node/*/book_access'] = TRUE;
+  }
+
+  return $paths;
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter() for book_admin_settings().
+ *
+ * @see theme_book_access_ui_settings()
+ */
+function book_access_ui_form_book_admin_settings_alter(&$form, &$form_state) {
+  $options = array(
+    'grant_admin_access' => '',
+    'grant_update' => '',
+    'grant_delete' => '',
+    'grant_add_child' => '',
+    'grant_edit_outline' => '',
+    'grant_view' => '',
+  );
+  $vars = new BookAccessVars();
+
+  $form['book_access_settings'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Book access settings'),
+    '#collapsible' => TRUE,
+    '#theme' => 'book_access_ui_settings',
+  );
+
+  $form['book_access_settings']['#options'] = array(
+    'grant_view' => t('View book'),
+    'grant_update' => t('Edit pages'),
+    'grant_delete' => t('Delete pages'),
+    'grant_admin_access' => t('Administer access'),
+    'grant_add_child' => t('Add child pages'),
+    'grant_edit_outline' => t('Edit book outlines'),
+  );
+
+  $form['book_access_settings']['info'] = array(
+    '#markup' => '<em>' . t('These are the default values for authors, roles, and users access. Third-party modules can alter these values on a per book basis.') . '</em>',
+  );
+  $form['book_access_settings']['grants']['book_access_default_authors_access'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Default authors access'),
+    '#default_value' => $vars['book_access_default_authors_access'],
+    '#options' => $options,
+  );
+
+  $form['book_access_settings']['grants']['book_access_default_roles_access'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Default roles access'),
+    '#default_value' => $vars['book_access_default_roles_access'],
+    '#options' => $options,
+  );
+
+  $form['book_access_settings']['grants']['book_access_default_users_access'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Default users access'),
+    '#default_value' => $vars['book_access_default_users_access'],
+    '#options' => $options,
+  );
+
+  $form['buttons']['#weight'] = 100;
+}
+
+/**
+ * Implements hook_help().
+ */
+function book_access_ui_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#book_access':
+      $help = '<p>' . t(
+        'Allow access control for book nodes on a per book basis.</p>
+        <p><a href="@permissions">Permissions enabled</a> will override the
+        module access settings. For example, if you would like a role to be able
+        to edit all book pages, enable <q>edit any book content</q> in
+        <a href="@permissions">Permissions</a>.
+        If you would like to control edit permission on a per book basis,
+        disable that permission in <a href="@permissions">Permissions</a> and
+        configure the module accordingly.', array(
+          '@permissions' => url('admin/user/permissions'),
+        )) . '</p>' .
+        '<p>' . t('Certain access control modules can impact functionality of this
+        module. Broad reaching modules such as "taxonomy access" and "content
+        access" can override the values set in the <em>Book access</em> settings page.
+        You must turn off all enabled access controls in such modules.</p>
+        <p>If you are using additional access control modules, be
+        certain that none of them are allowing access to book nodes. The simplest
+        way to do this is to limit the types of pages that a book may contain to
+        a single node type (such as <q>book page</q>) and unset any access grants
+        provided by other modules on that node type configuration page.') . '</p>';
+      break;
+
+    case 'node/%/book_access':
+      $help = '<p>' . t(
+        'Configure access control per book based on users or roles. Settings
+        affect all pages within the given book.
+        These settings will have no effect for roles with permission to administer nodes.'
+      ) . '</p>';
+      break;
+
+    default:
+      $help = '';
+  }
+
+  return $help;
+}
+
+/**
+ * Implements hook_menu().
+ */
+function book_access_ui_menu() {
+  $access_permission = array('administer book access');
+  $item = array();
+
+  // We create an additional tab in each top-level book view page.
+  $items['node/%node/book_access'] = array(
+    'title' => 'Book access',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('book_access_ui_grants_form', 1),
+    'access callback' => 'book_access_ui_grants_form_access',
+    'access arguments' => array(1),
+    'weight' => 2,
+    'type' => MENU_LOCAL_TASK,
+    'file' => 'book_access_ui.admin.inc',
+  );
+
+  $items['book_access/delete/user_permission/%node/%user'] = array(
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('book_access_ui_user_permissions_remove', 3, 4),
+    'access arguments' => $access_permission,
+    'type' => MENU_CALLBACK,
+    'file' => 'book_access_ui.admin.inc',
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function book_access_ui_theme() {
+  return array(
+    'book_access_ui_grants_form' => array(
+      'render element' => 'form',
+      'file' => 'book_access_ui.admin.inc',
+    ),
+    'book_access_ui_settings' => array(
+      'render element' => 'form',
+      'file' => 'book_access_ui.admin.inc',
+    ),
+  );
+}
+
+/**
+ * Determines when the book access tab can be shown in the node edit page.
+ *
+ * @see book_access_ui_menu()
+ */
+function book_access_ui_grants_form_access($node) {
+  global $user;
+
+  if (!empty($node->book['bid'])) {
+    if (user_access('administer nodes') || user_access('administer book access')) {
+      return TRUE;
+    }
+
+    if (user_access('administer access of any books')) {
+      return TRUE;
+    }
+
+    if ($node->uid == $user->uid && user_access('administer access of own books')) {
+      return TRUE;
+    }
+
+    return BookAccess::checkGrant($node->book['bid'], 'admin_access');
+  }
+
+  return FALSE;
+}

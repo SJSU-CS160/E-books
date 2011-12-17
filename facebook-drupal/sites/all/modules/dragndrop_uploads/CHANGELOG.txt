@@ -1,0 +1,18 @@
+
+Drag'n'Drop Uploads 7.x-1.x-dev, xxxx-xx-xx (development release)
+---------------------------------------
+
+- #650962: Improved support for Safari/Chrome with certain themes.
+- #640876: Added additional dropzones.
+- #631366: Added support for Mozilla Firefox 3.6.
+- #630666: Added support for Google Gears.
+- Added upload progress bar.
+- Added setting to hide textarea/WYSIWYG dropzone upload widget.
+- Added support for the WYSIWYG module.
+- Added support for Field Formatters.
+- Added configuration options.
+- Improved Internet Explorer Google Gears support.
+- Improved support for multiple textarea targets.
+- Removed dependancy on Swell Javascript Library.
+- Initial 7.x release.
+
